@@ -1,0 +1,4 @@
+                _boardView.MoveGem(from, to);
+                var targetPos = _boardView.GetAnchoredPosition(to.x, to.y);
+
+                gemView.PlayFall(targetPos, _animationConfig.FallDuration, () =>
