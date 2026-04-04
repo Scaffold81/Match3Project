@@ -2,7 +2,6 @@
 
 using Match3.Controllers;
 using Match3.Services.Board;
-using Match3.Services.Factories;
 using Match3.Services.Gravity;
 using Match3.Services.Layer;
 using Match3.Services.Level;
@@ -19,8 +18,6 @@ namespace Match3.Installers
     {
         public override void InstallBindings()
         {
-            Container.Bind<GemFactory>().AsSingle();
-
             Container.Bind<BoardService>().AsSingle().NonLazy();
             Container.Bind<MatchService>().AsSingle().NonLazy();
             Container.Bind<SwapService>().AsSingle().NonLazy();

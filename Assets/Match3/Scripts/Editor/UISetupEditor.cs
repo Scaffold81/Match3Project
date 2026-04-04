@@ -29,7 +29,6 @@ namespace Match3.Editor
         private static readonly Color ColorTextAccent   = HexColor("E94560");
         private static readonly Color ColorLayerCell    = new(1f, 0.84f, 0f, 0.35f);
 
-        // internal — чтобы SerializedObjectHelper мог использовать
         internal struct ObjectiveEntryViewData
         {
             public GameObject      Root;
@@ -59,13 +58,12 @@ namespace Match3.Editor
 
             CreateBoardArea(canvas);
             CreateResultPanel(canvas);
-            CreateInputHandler(canvas);
             EnsureLayerCellPrefab();
 
             Selection.activeGameObject = canvas;
             EditorUtility.SetDirty(canvas);
 
-            Debug.LogWarning("Match3 UI: иерархия создана. Назначь LayerView.LayerCellPrefab вручную если не назначился.");
+            Debug.LogWarning("Match3 UI: иерархия создана. Ввод через GemView (IPointerClickHandler) — InputHandler не нужен.");
         }
 
         // ── Canvas ───────────────────────────────────────────────────────
@@ -77,10 +75,10 @@ namespace Match3.Editor
             canvas.sortingOrder = 0;
 
             var scaler = go.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode          = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution  = new Vector2(ScreenWidth, ScreenHeight);
-            scaler.screenMatchMode      = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight   = 0.5f;
+            scaler.uiScaleMode         = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(ScreenWidth, ScreenHeight);
+            scaler.screenMatchMode     = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight  = 0.5f;
 
             go.AddComponent<GraphicRaycaster>();
             return go;
@@ -111,16 +109,16 @@ namespace Match3.Editor
             img.color         = ColorHeader;
             img.raycastTarget = false;
 
-            var line     = CreateUIObject("AccentLine", go);
-            var lrt      = line.GetComponent<RectTransform>();
+            var line = CreateUIObject("AccentLine", go);
+            var lrt  = line.GetComponent<RectTransform>();
             lrt.anchorMin        = new Vector2(0f, 0f);
             lrt.anchorMax        = new Vector2(1f, 0f);
             lrt.pivot            = new Vector2(0.5f, 0f);
             lrt.sizeDelta        = new Vector2(0f, 2f);
             lrt.anchoredPosition = Vector2.zero;
-            var limg             = line.AddComponent<Image>();
-            limg.color           = ColorBoardBorder;
-            limg.raycastTarget   = false;
+            var limg           = line.AddComponent<Image>();
+            limg.color         = ColorBoardBorder;
+            limg.raycastTarget = false;
 
             return go;
         }
@@ -135,40 +133,37 @@ namespace Match3.Editor
             rt.offsetMin = new Vector2(12f, 8f);
             rt.offsetMax = new Vector2(-4f, -8f);
 
-            // Иконка
-            var icon    = CreateUIObject("Icon", go);
-            var irt     = icon.GetComponent<RectTransform>();
+            var icon = CreateUIObject("Icon", go);
+            var irt  = icon.GetComponent<RectTransform>();
             irt.anchorMin        = new Vector2(0f, 0.5f);
             irt.anchorMax        = new Vector2(0f, 0.5f);
             irt.pivot            = new Vector2(0f, 0.5f);
             irt.anchoredPosition = Vector2.zero;
             irt.sizeDelta        = new Vector2(32f, 32f);
-            var iconImg          = icon.AddComponent<Image>();
-            iconImg.color        = ColorTextAccent;
+            var iconImg           = icon.AddComponent<Image>();
+            iconImg.color         = ColorTextAccent;
             iconImg.raycastTarget = false;
 
-            // Число ходов
             var numGo    = CreateUIObject("MovesLeftText", go);
             var nrt      = numGo.GetComponent<RectTransform>();
             nrt.anchorMin = new Vector2(0f, 0f);
             nrt.anchorMax = new Vector2(1f, 1f);
             nrt.offsetMin = new Vector2(40f, 0f);
             nrt.offsetMax = Vector2.zero;
-            var tmp       = numGo.AddComponent<TextMeshProUGUI>();
-            tmp.text      = "30";
-            tmp.fontSize  = 36f;
-            tmp.fontStyle = FontStyles.Bold;
-            tmp.color     = ColorTextWhite;
-            tmp.alignment = TextAlignmentOptions.MidlineLeft;
+            var numTmp      = numGo.AddComponent<TextMeshProUGUI>();
+            numTmp.text      = "30";
+            numTmp.fontSize  = 36f;
+            numTmp.fontStyle = FontStyles.Bold;
+            numTmp.color     = ColorTextWhite;
+            numTmp.alignment = TextAlignmentOptions.MidlineLeft;
 
-            // Бесконечность
-            var infGo    = CreateUIObject("UnlimitedIndicator", go);
-            var irt2     = infGo.GetComponent<RectTransform>();
+            var infGo  = CreateUIObject("UnlimitedIndicator", go);
+            var irt2   = infGo.GetComponent<RectTransform>();
             irt2.anchorMin = new Vector2(0f, 0f);
             irt2.anchorMax = new Vector2(1f, 1f);
             irt2.offsetMin = new Vector2(40f, 0f);
             irt2.offsetMax = Vector2.zero;
-            var infTmp    = infGo.AddComponent<TextMeshProUGUI>();
+            var infTmp      = infGo.AddComponent<TextMeshProUGUI>();
             infTmp.text      = "inf";
             infTmp.fontSize  = 36f;
             infTmp.fontStyle = FontStyles.Bold;
@@ -212,21 +207,19 @@ namespace Match3.Editor
             var root = CreateUIObject($"ObjectiveEntry_{index}", parent);
             root.GetComponent<RectTransform>().sizeDelta = new Vector2(72f, 72f);
 
-            var card          = root.AddComponent<Image>();
-            card.color        = new Color(1f, 1f, 1f, 0.08f);
+            var card           = root.AddComponent<Image>();
+            card.color         = new Color(1f, 1f, 1f, 0.08f);
             card.raycastTarget = false;
 
-            // Иконка фишки
             var iconGo  = CreateUIObject("Icon", root);
             var irt     = iconGo.GetComponent<RectTransform>();
             irt.anchorMin = new Vector2(0.1f, 0.3f);
             irt.anchorMax = new Vector2(0.9f, 0.9f);
             irt.offsetMin = irt.offsetMax = Vector2.zero;
-            var iconImg          = iconGo.AddComponent<Image>();
-            iconImg.color        = Color.white;
+            var iconImg           = iconGo.AddComponent<Image>();
+            iconImg.color         = Color.white;
             iconImg.raycastTarget = false;
 
-            // Счётчик
             var countGo  = CreateUIObject("CountText", root);
             var crt      = countGo.GetComponent<RectTransform>();
             crt.anchorMin = new Vector2(0f, 0f);
@@ -239,21 +232,28 @@ namespace Match3.Editor
             countTmp.color     = ColorTextWhite;
             countTmp.alignment = TextAlignmentOptions.Center;
 
-            // Галочка
             var checkGo  = CreateUIObject("CompletedMark", root);
             var chrt     = checkGo.GetComponent<RectTransform>();
             chrt.anchorMin = Vector2.zero;
             chrt.anchorMax = Vector2.one;
             chrt.offsetMin = chrt.offsetMax = Vector2.zero;
-            var checkImg          = checkGo.AddComponent<Image>();
-            checkImg.color        = new Color(0.2f, 0.9f, 0.4f, 0.9f);
+            var checkImg           = checkGo.AddComponent<Image>();
+            checkImg.color         = new Color(0.2f, 0.9f, 0.4f, 0.9f);
             checkImg.raycastTarget = false;
-            var checkTmp      = checkGo.AddComponent<TextMeshProUGUI>();
-            checkTmp.text      = "V";
-            checkTmp.fontSize  = 32f;
-            checkTmp.fontStyle = FontStyles.Bold;
-            checkTmp.color     = Color.white;
-            checkTmp.alignment = TextAlignmentOptions.Center;
+
+            var checkLabelGo = CreateUIObject("CheckLabel", checkGo);
+            var clrt         = checkLabelGo.GetComponent<RectTransform>();
+            clrt.anchorMin   = Vector2.zero;
+            clrt.anchorMax   = Vector2.one;
+            clrt.offsetMin   = clrt.offsetMax = Vector2.zero;
+            var checkTmp          = checkLabelGo.AddComponent<TextMeshProUGUI>();
+            checkTmp.text         = "V";
+            checkTmp.fontSize     = 32f;
+            checkTmp.fontStyle    = FontStyles.Bold;
+            checkTmp.color        = Color.white;
+            checkTmp.alignment    = TextAlignmentOptions.Center;
+            checkTmp.raycastTarget = false;
+
             checkGo.SetActive(false);
 
             return new ObjectiveEntryViewData
@@ -268,28 +268,27 @@ namespace Match3.Editor
         // ── Board Area ───────────────────────────────────────────────────
         private static void CreateBoardArea(GameObject parent)
         {
-            var border    = CreateUIObject("BoardBorder", parent);
-            var brt       = border.GetComponent<RectTransform>();
+            var border = CreateUIObject("BoardBorder", parent);
+            var brt    = border.GetComponent<RectTransform>();
             brt.anchorMin        = new Vector2(0.5f, 0.5f);
             brt.anchorMax        = new Vector2(0.5f, 0.5f);
             brt.pivot            = new Vector2(0.5f, 0.5f);
             brt.anchoredPosition = new Vector2(0f, -20f);
             brt.sizeDelta        = new Vector2(BoardSize + 8f, BoardSize + 8f);
-            var borderImg        = border.AddComponent<Image>();
-            borderImg.color      = ColorBoardBorder;
+            var borderImg           = border.AddComponent<Image>();
+            borderImg.color         = ColorBoardBorder;
             borderImg.raycastTarget = false;
 
-            var board    = CreateUIObject("Board", border);
-            var rt       = board.GetComponent<RectTransform>();
+            var board = CreateUIObject("Board", border);
+            var rt    = board.GetComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
             rt.offsetMin = new Vector2(4f, 4f);
             rt.offsetMax = new Vector2(-4f, -4f);
-            var boardImg         = board.AddComponent<Image>();
-            boardImg.color       = ColorBoard;
+            var boardImg           = board.AddComponent<Image>();
+            boardImg.color         = ColorBoard;
             boardImg.raycastTarget = false;
 
-            // LayerContainer (под фишками)
             var layerContainer = CreateUIObject("LayerContainer", board);
             StretchFull(layerContainer);
             var layerView = layerContainer.AddComponent<LayerView>();
@@ -302,7 +301,6 @@ namespace Match3.Editor
             lcrt.pivot     = new Vector2(0f, 1f);
             SerializedObjectHelper.SetField(layerView, "_layerContainer", lcrt);
 
-            // GemContainer (поверх)
             var gemContainer = CreateUIObject("GemContainer", board);
             var gcrt         = gemContainer.GetComponent<RectTransform>();
             gcrt.anchorMin = Vector2.zero;
@@ -321,7 +319,7 @@ namespace Match3.Editor
             var overlay    = CreateUIObject("ResultOverlay", parent);
             StretchFull(overlay);
             var overlayImg = overlay.AddComponent<Image>();
-            overlayImg.color        = ColorOverlay;
+            overlayImg.color         = ColorOverlay;
             overlayImg.raycastTarget = true;
             overlay.SetActive(false);
 
@@ -332,9 +330,9 @@ namespace Match3.Editor
             crt.offsetMin = crt.offsetMax = Vector2.zero;
 
             var winPanel   = CreateResultCard(card, "WinPanel",  ColorWin,  "Level Complete!", ColorTextWhite);
-            var nextBtn    = CreateButton(winPanel,  "NextLevelButton", "Next ->",      ColorBtnPrimary);
-            var losePanel  = CreateResultCard(card, "LosePanel", ColorLose, "Try Again",      ColorTextWhite);
-            var restartBtn = CreateButton(losePanel, "RestartButton",   "Restart",      ColorBtnSecondary);
+            var nextBtn    = CreateButton(winPanel,  "NextLevelButton", "Next ->",   ColorBtnPrimary);
+            var losePanel  = CreateResultCard(card, "LosePanel", ColorLose, "Try Again",       ColorTextWhite);
+            var restartBtn = CreateButton(losePanel, "RestartButton",   "Restart",   ColorBtnSecondary);
 
             winPanel .SetActive(false);
             losePanel.SetActive(false);
@@ -378,9 +376,8 @@ namespace Match3.Editor
         private static GameObject CreateButton(
             GameObject parent, string name, string label, Color color)
         {
-            var go  = CreateUIObject(name, parent);
-            var le  = go.AddComponent<LayoutElement>();
-            le.preferredHeight = 56f;
+            var go = CreateUIObject(name, parent);
+            go.AddComponent<LayoutElement>().preferredHeight = 56f;
 
             var img = go.AddComponent<Image>();
             img.color = color;
@@ -408,17 +405,6 @@ namespace Match3.Editor
             return go;
         }
 
-        // ── InputHandler ─────────────────────────────────────────────────
-        private static void CreateInputHandler(GameObject parent)
-        {
-            var go  = CreateUIObject("InputHandler", parent);
-            StretchFull(go);
-            var img = go.AddComponent<Image>();
-            img.color        = Color.clear;
-            img.raycastTarget = true;
-            go.AddComponent<Match3.Controllers.InputController>();
-        }
-
         // ── Layer Cell Prefab ────────────────────────────────────────────
         private static void EnsureLayerCellPrefab()
         {
@@ -431,9 +417,8 @@ namespace Match3.Editor
             var rt  = go.AddComponent<RectTransform>();
             rt.sizeDelta = new Vector2(100f, 100f);
             rt.pivot     = new Vector2(0f, 1f);
-
             var img = go.AddComponent<Image>();
-            img.color        = ColorLayerCell;
+            img.color         = ColorLayerCell;
             img.raycastTarget = false;
 
             PrefabUtility.SaveAsPrefabAsset(go, path);

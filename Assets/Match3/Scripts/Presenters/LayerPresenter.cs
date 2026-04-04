@@ -12,20 +12,20 @@ namespace Match3.Presenters
     public sealed class LayerPresenter : IInitializable, IDisposable
     {
         private readonly LayerService _layerService;
-        private readonly LayerView _layerView;
-        private readonly BoardView _boardView;
+        private readonly LayerView    _layerView;
+        private readonly BoardView    _boardView;
 
         private readonly CompositeDisposable _disposables = new();
 
         [Inject]
         public LayerPresenter(
             LayerService layerService,
-            LayerView layerView,
-            BoardView boardView)
+            LayerView    layerView,
+            BoardView    boardView)
         {
             _layerService = layerService;
-            _layerView = layerView;
-            _boardView = boardView;
+            _layerView    = layerView;
+            _boardView    = boardView;
         }
 
         public void Initialize()
@@ -45,7 +45,8 @@ namespace Match3.Presenters
                 if (!_layerService.HasLayer(row, col)) continue;
 
                 var anchoredPos = _boardView.GetAnchoredPosition(row, col);
-                _layerView.SpawnLayerCell(new Vector2Int(row, col), anchoredPos);
+                // CellSize берём из BoardView — он уже вычислен под реальный экран
+                _layerView.SpawnLayerCell(new Vector2Int(row, col), anchoredPos, _boardView.CellSize);
             }
         }
 

@@ -1,6 +1,5 @@
 #nullable enable
 
-using Match3.Controllers;
 using Match3.Views;
 using Zenject;
 
@@ -15,7 +14,6 @@ namespace Match3.Installers
             Container.Bind<ObjectiveView>().FromComponentInHierarchy().AsSingle();
             Container.Bind<MoveCounterView>().FromComponentInHierarchy().AsSingle();
             Container.Bind<LevelResultView>().FromComponentInHierarchy().AsSingle();
-            Container.Bind<InputController>().FromComponentInHierarchy().AsSingle();
         }
     }
 }

@@ -2,7 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Threading;
+using Match3.Core.Models;
 using Cysharp.Threading.Tasks;
 using Match3.Configs;
 using Match3.Core.Enums;
@@ -25,68 +28,79 @@ namespace Match3.Controllers
 {
     public sealed class GameLoopController : IInitializable, IDisposable
     {
-        private readonly LevelService _levelService;
-        private readonly BoardService _boardService;
-        private readonly MatchService _matchService;
-        private readonly SwapService _swapService;
-        private readonly GravityService _gravityService;
-        private readonly SpawnService _spawnService;
-        private readonly LayerService _layerService;
-        private readonly ObjectiveService _objectiveService;
-        private readonly MoveCounterService _moveCounterService;
-        private readonly BoardPresenter _boardPresenter;
-        private readonly BoardView _boardView;
-        private readonly LayerPresenter _layerPresenter;
-        private readonly LevelPresenter _levelPresenter;
-        private readonly ObjectivePresenter _objectivePresenter;
-        private readonly AnimationConfig _animationConfig;
-        private readonly LevelConfig _startLevelConfig;
+        private readonly LevelService           _levelService;
+        private readonly BoardService           _boardService;
+        private readonly MatchService           _matchService;
+        private readonly SwapService            _swapService;
+        private readonly GravityService         _gravityService;
+        private readonly SpawnService           _spawnService;
+        private readonly LayerService           _layerService;
+        private readonly ObjectiveService       _objectiveService;
+        private readonly MoveCounterService     _moveCounterService;
+        private readonly BoardPresenter         _boardPresenter;
+        private readonly BoardView              _boardView;
+        private readonly LayerPresenter         _layerPresenter;
+        private readonly LevelPresenter         _levelPresenter;
+        private readonly ObjectivePresenter     _objectivePresenter;
+        private readonly AnimationConfig        _animationConfig;
+        private readonly LevelConfigRepository  _levelRepository;
 
-        private readonly CompositeDisposable _disposables = new();
-        private readonly CancellationTokenSource _cts = new();
+        private readonly CompositeDisposable     _disposables = new();
+        private readonly CancellationTokenSource _cts         = new();
         private bool _isProcessing;
 
         [Inject]
         public GameLoopController(
-            LevelService levelService,
-            BoardService boardService,
-            MatchService matchService,
-            SwapService swapService,
-            GravityService gravityService,
-            SpawnService spawnService,
-            LayerService layerService,
-            ObjectiveService objectiveService,
-            MoveCounterService moveCounterService,
-            BoardPresenter boardPresenter,
-            BoardView boardView,
-            LayerPresenter layerPresenter,
-            LevelPresenter levelPresenter,
-            ObjectivePresenter objectivePresenter,
-            AnimationConfig animationConfig,
-            LevelConfig startLevelConfig)
+            LevelService            levelService,
+            BoardService            boardService,
+            MatchService            matchService,
+            SwapService             swapService,
+            GravityService          gravityService,
+            SpawnService            spawnService,
+            LayerService            layerService,
+            ObjectiveService        objectiveService,
+            MoveCounterService      moveCounterService,
+            BoardPresenter          boardPresenter,
+            BoardView               boardView,
+            LayerPresenter          layerPresenter,
+            LevelPresenter          levelPresenter,
+            ObjectivePresenter      objectivePresenter,
+            AnimationConfig         animationConfig,
+            LevelConfigRepository   levelRepository)
         {
-            _levelService = levelService;
-            _boardService = boardService;
-            _matchService = matchService;
-            _swapService = swapService;
-            _gravityService = gravityService;
-            _spawnService = spawnService;
-            _layerService = layerService;
-            _objectiveService = objectiveService;
+            _levelService       = levelService;
+            _boardService       = boardService;
+            _matchService       = matchService;
+            _swapService        = swapService;
+            _gravityService     = gravityService;
+            _spawnService       = spawnService;
+            _layerService       = layerService;
+            _objectiveService   = objectiveService;
             _moveCounterService = moveCounterService;
-            _boardPresenter = boardPresenter;
-            _boardView = boardView;
-            _layerPresenter = layerPresenter;
-            _levelPresenter = levelPresenter;
+            _boardPresenter     = boardPresenter;
+            _boardView          = boardView;
+            _layerPresenter     = layerPresenter;
+            _levelPresenter     = levelPresenter;
             _objectivePresenter = objectivePresenter;
-            _animationConfig = animationConfig;
-            _startLevelConfig = startLevelConfig;
+            _animationConfig    = animationConfig;
+            _levelRepository    = levelRepository;
         }
 
         public void Initialize()
         {
+            // Если Levels[] пуст — берём первый из репозитория (если есть) или создаём тестовый
+            var levelConfigs = _levelRepository.Levels;
+            
+            if (levelConfigs.Length == 0)
+            {
+                Debug.LogWarning("[GameLoopController] LevelConfigRepository.Levels is empty, using fallback test level");
+                levelConfigs = new[] { CreateTestLevel() };
+            }
+
+            var levelConfig = _levelRepository.First ?? levelConfigs[0];
+
             _swapService.OnSwapSuccess
-                .Subscribe(data => OnSwapSucceeded(data.from, data.to).Forget())
+                .Subscribe(data => OnSwapSucceeded().Forget())
                 .AddTo(_disposables);
 
             _levelService.State
@@ -95,7 +109,7 @@ namespace Match3.Controllers
                 .Subscribe(_ => OnLevelStarted())
                 .AddTo(_disposables);
 
-            _levelService.StartLevel(_startLevelConfig);
+            _levelService.StartLevel(levelConfig);
         }
 
         private void OnLevelStarted()
@@ -106,7 +120,7 @@ namespace Match3.Controllers
             _levelPresenter.SetupMoveCounter();
         }
 
-        private async UniTaskVoid OnSwapSucceeded(Vector2Int from, Vector2Int to)
+        private async UniTaskVoid OnSwapSucceeded()
         {
             if (_isProcessing) return;
             _isProcessing = true;
@@ -114,6 +128,7 @@ namespace Match3.Controllers
 
             try
             {
+                // Ждём завершения анимации свопа
                 await UniTask.Delay(
                     TimeSpan.FromSeconds(_animationConfig.SwapDuration),
                     cancellationToken: _cts.Token);
@@ -134,57 +149,63 @@ namespace Match3.Controllers
 
         private async UniTask ProcessMatchesAsync(CancellationToken ct)
         {
-            var board = _boardService.Board.CurrentValue;
+            var board   = _boardService.Board.CurrentValue;
             var matches = _matchService.FindMatches(board, _boardService.Rows, _boardService.Columns);
 
             while (matches.Count > 0)
             {
-                var matchedCells = _matchService.GetAllMatchedCells(matches);
+                var matchedCells  = _matchService.GetAllMatchedCells(matches);
                 var boardSnapshot = CopyBoard(board);
 
                 _objectiveService.RegisterMatch(matchedCells, boardSnapshot);
                 _layerService.ProcessMatches(matchedCells);
 
+                // Анимируем уничтожение — PlayDestroy внутри уже делает SetEmpty
                 await AnimateDestroyAsync(matchedCells, ct);
 
+                // Обновляем логику
                 foreach (var cell in matchedCells)
                     _boardService.RemoveNode(cell.x, cell.y);
 
                 await UniTask.Yield(ct);
 
+                // Гравитация — сдвигаем визуал вниз
                 var falls = _gravityService.ApplyGravity();
-                await AnimateFallsAsync(falls, ct);
+                ApplyFallsVisual(falls);
 
+                await UniTask.Delay(
+                    TimeSpan.FromSeconds(_animationConfig.FallDuration),
+                    cancellationToken: ct);
+
+                // Спаун — ставим визуал + анимация появления
                 var spawned = _spawnService.SpawnMissing();
                 await AnimateSpawnAsync(spawned, ct);
 
-                board = _boardService.Board.CurrentValue;
+                board   = _boardService.Board.CurrentValue;
                 matches = _matchService.FindMatches(board, _boardService.Rows, _boardService.Columns);
             }
         }
 
-        private async UniTask AnimateDestroyAsync(
-            List<Vector2Int> cells,
-            CancellationToken ct)
+        private async UniTask AnimateDestroyAsync(List<Vector2Int> cells, CancellationToken ct)
         {
-            var pending = cells.Count;
-            if (pending == 0) return;
+            if (cells.Count == 0) return;
 
-            var tcs = new UniTaskCompletionSource();
+            var pending = cells.Count;
+            var tcs     = new UniTaskCompletionSource();
 
             foreach (var cell in cells)
             {
                 var gemView = _boardView.GetGemView(cell);
-                if (gemView == null)
+                if (gemView == null || gemView.IsEmpty)
                 {
                     pending--;
                     if (pending == 0) tcs.TrySetResult();
                     continue;
                 }
 
+                // PlayDestroy сам делает SetEmpty внутри коллбэка
                 gemView.PlayDestroy(_animationConfig.MatchDestroyDuration, () =>
                 {
-                    _boardView.RemoveGem(cell);
                     pending--;
                     if (pending == 0) tcs.TrySetResult();
                 });
@@ -193,49 +214,29 @@ namespace Match3.Controllers
             await tcs.Task.AttachExternalCancellation(ct);
         }
 
-        private async UniTask AnimateFallsAsync(
-            List<(Vector2Int from, Vector2Int to)> falls,
-            CancellationToken ct)
+        // Гравитация — визуал перетекает вниз без анимации позиции
+        private void ApplyFallsVisual(List<(Vector2Int from, Vector2Int to)> falls)
         {
-            if (falls.Count == 0) return;
-
-            var pending = falls.Count;
-            var tcs = new UniTaskCompletionSource();
-
             foreach (var (from, to) in falls)
             {
-                var gemView = _boardView.GetGemView(from);
-                if (gemView == null)
-                {
-                    pending--;
-                    if (pending == 0) tcs.TrySetResult();
-                    continue;
-                }
+                var fromView = _boardView.GetGemView(from);
+                var toView   = _boardView.GetGemView(to);
+                if (fromView == null || toView == null) continue;
 
-                _boardView.MoveGem(from, to);
-                var targetPos = _boardView.GetAnchoredPosition(to.x, to.y);
-
-                gemView.PlayFall(targetPos, _animationConfig.FallDuration, () =>
-                {
-                    pending--;
-                    if (pending == 0) tcs.TrySetResult();
-                });
+                toView.CopyVisualFrom(fromView);
+                fromView.SetEmpty();
             }
-
-            await tcs.Task.AttachExternalCancellation(ct);
         }
 
         private async UniTask AnimateSpawnAsync(
-            List<(Vector2Int position, NodeType nodeType)> spawned,
-            CancellationToken ct)
+            List<(Vector2Int position, NodeType nodeType)> spawned, CancellationToken ct)
         {
             if (spawned.Count == 0) return;
 
             foreach (var (cell, nodeType) in spawned)
             {
-                _boardPresenter.SpawnGemView(cell, nodeType);
-                var gemView = _boardView.GetGemView(cell);
-                gemView?.PlaySpawn(_animationConfig.FallDuration);
+                _boardPresenter.SetCellVisual(cell, nodeType);
+                _boardView.GetGemView(cell)?.PlaySpawn(_animationConfig.FallDuration);
             }
 
             await UniTask.Delay(
@@ -248,12 +249,36 @@ namespace Match3.Controllers
             var rows = source.GetLength(0);
             var cols = source.GetLength(1);
             var copy = new NodeType[rows, cols];
-
             for (var r = 0; r < rows; r++)
             for (var c = 0; c < cols; c++)
                 copy[r, c] = source[r, c];
-
             return copy;
+        }
+
+        // Тестовый уровень для быстрого старта (без LevelConfig asset)
+        private LevelConfig CreateTestLevel()
+        {
+            var rows = 5;
+            var cols = 7;
+            
+            // Явный список всех NodeTypes
+            var nodeTypes = new[] { NodeType.Red, NodeType.Blue, NodeType.Green, NodeType.Yellow, NodeType.Purple, NodeType.Orange };
+
+            // Создаём Grid[] по структуре LevelConfig через конструкторы
+            var grid = new CellRow[rows];
+            for (var r = 0; r < rows; r++)
+            {
+                var rowCells = new CellData[cols];
+                for (var c = 0; c < cols; c++)
+                {
+                    var randomType = nodeTypes[UnityEngine.Random.Range(0, nodeTypes.Length)];
+                    rowCells[c] = new CellData(CellType.Normal, randomType, false);
+                }
+                grid[r] = new CellRow();
+                grid[r].Cells = rowCells;
+            }
+
+            return new LevelConfig(grid, 0, Array.Empty<ObjectiveData>());
         }
 
         public void Dispose()

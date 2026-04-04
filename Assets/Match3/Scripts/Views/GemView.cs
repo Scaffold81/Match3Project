@@ -5,73 +5,95 @@ using DG.Tweening;
 using Match3.Configs;
 using Match3.Core.Enums;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Match3.Views
 {
     [RequireComponent(typeof(Image))]
-    public sealed class GemView : MonoBehaviour
+    public sealed class GemView : MonoBehaviour, IPointerClickHandler
     {
-        private Image _image = null!;
+        private Image         _image         = null!;
         private RectTransform _rectTransform = null!;
-        private Tweener? _currentTween;
+        private Tweener?      _currentTween;
 
-        public NodeType NodeType { get; private set; }
+        public NodeType      NodeType  { get; private set; } = NodeType.None;
+        public bool          IsEmpty   => NodeType == NodeType.None;
         public RectTransform RectTransform => _rectTransform;
+
+        public event Action? OnClicked;
 
         private void Awake()
         {
-            _image = GetComponent<Image>();
-            _rectTransform = GetComponent<RectTransform>();
+            _image               = GetComponent<Image>();
+            _rectTransform       = GetComponent<RectTransform>();
+            _image.raycastTarget = true;
+            _image.color         = Color.clear;
         }
 
-        public void Setup(NodeType nodeType, GemVisualData visualData)
+        public void SetVisual(NodeType nodeType, GemVisualData visual)
         {
-            NodeType = nodeType;
-            _image.sprite = visualData.Sprite;
-            _image.color = visualData.Color;
+            NodeType      = nodeType;
+            _image.sprite = visual.Sprite;
+            _image.color  = visual.Color;
         }
 
-        public void PlaySwap(Vector2 targetPos, float duration, Action? onComplete = null)
+        public void SetEmpty()
         {
-            _currentTween?.Kill();
-            _currentTween = _rectTransform
-                .DOAnchorPos(targetPos, duration)
-                .SetEase(Ease.OutQuad)
-                .SetLink(gameObject)
-                .OnComplete(() => onComplete?.Invoke());
+            NodeType      = NodeType.None;
+            _image.sprite = null;
+            _image.color  = Color.clear;
         }
 
-        public void PlayReturn(Vector2 originalPos, float duration, Action? onComplete = null)
+        // Обменивает визуал с другой ячейкой
+        public void SwapWith(GemView other)
         {
-            _currentTween?.Kill();
-            _currentTween = _rectTransform
-                .DOAnchorPos(originalPos, duration)
-                .SetEase(Ease.OutBack)
-                .SetLink(gameObject)
-                .OnComplete(() => onComplete?.Invoke());
+            var tempNodeType = NodeType;
+            var tempSprite   = _image.sprite;
+            var tempColor    = _image.color;
+
+            NodeType        = other.NodeType;
+            _image.sprite   = other._image.sprite;
+            _image.color    = other._image.color;
+
+            other.NodeType      = tempNodeType;
+            other._image.sprite = tempSprite;
+            other._image.color  = tempColor;
         }
 
-        public void PlayFall(Vector2 targetPos, float duration, Action? onComplete = null)
+        // Копирует визуал из другой ячейки (без изменения other)
+        public void CopyVisualFrom(GemView other)
         {
-            _currentTween?.Kill();
-            _currentTween = _rectTransform
-                .DOAnchorPos(targetPos, duration)
-                .SetEase(Ease.InQuad)
-                .SetLink(gameObject)
-                .OnComplete(() => onComplete?.Invoke());
+            NodeType      = other.NodeType;
+            _image.sprite = other._image.sprite;
+            _image.color  = other._image.color;
         }
 
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (IsEmpty) return;
+            Debug.LogWarning($"[GemView] Clicked: {NodeType} pos={_rectTransform.anchoredPosition}");
+            OnClicked?.Invoke();
+        }
+
+        // Уничтожение — scale → 0, затем SetEmpty
         public void PlayDestroy(float duration, Action? onComplete = null)
         {
             _currentTween?.Kill();
+            _rectTransform.localScale = Vector3.one;
             _currentTween = _rectTransform
                 .DOScale(Vector3.zero, duration)
                 .SetEase(Ease.InBack)
                 .SetLink(gameObject)
-                .OnComplete(() => onComplete?.Invoke());
+                .OnComplete(() =>
+                {
+                    SetEmpty();
+                    ResetScale();
+                    onComplete?.Invoke();
+                });
         }
 
+        // Появление — scale 0 → 1
         public void PlaySpawn(float duration)
         {
             _currentTween?.Kill();
@@ -82,6 +104,26 @@ namespace Match3.Views
                 .SetLink(gameObject);
         }
 
-        private void OnDestroy() => _currentTween?.Kill();
+        // Пульс при свопе
+        public void PlaySwapPulse(float duration, Action? onComplete = null)
+        {
+            _currentTween?.Kill();
+            _currentTween = _rectTransform
+                .DOPunchScale(Vector3.one * 0.12f, duration, 1, 0.5f)
+                .SetLink(gameObject)
+                .OnComplete(() => onComplete?.Invoke());
+        }
+
+        public void ResetScale()
+        {
+            _currentTween?.Kill();
+            _rectTransform.localScale = Vector3.one;
+        }
+
+        private void OnDestroy()
+        {
+            _currentTween?.Kill();
+            OnClicked = null;
+        }
     }
 }

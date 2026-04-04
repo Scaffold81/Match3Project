@@ -19,11 +19,27 @@ namespace Match3.Configs
         public int Columns => Grid.Length > 0 ? Grid[0].Cells.Length : 0;
 
         public CellData GetCell(int row, int col) => Grid[row].Cells[col];
+
+        // Конструктор для быстрого создания (для тестов)
+        public LevelConfig(CellRow[] grid, int moveLimit, ObjectiveData[] objectives)
+        {
+            Grid      = grid;
+            MoveLimit = moveLimit;
+            Objectives= objectives;
+        }
     }
 
     [Serializable]
     public sealed class CellRow
     {
-        [field: SerializeField] public CellData[] Cells { get; private set; } = Array.Empty<CellData>();
+        [field: SerializeField] public CellData[] Cells { get; set; } = Array.Empty<CellData>();
+        
+        public CellRow() { }
+        
+        // Конструктор для быстрого создания (для тестов)
+        public CellRow(CellData[] cells)
+        {
+            Cells = cells;
+        }
     }
 }

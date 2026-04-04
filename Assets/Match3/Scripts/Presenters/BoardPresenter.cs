@@ -4,8 +4,6 @@ using System;
 using Match3.Configs;
 using Match3.Core.Enums;
 using Match3.Services.Board;
-using Match3.Services.Factories;
-using Match3.Services.Spawn;
 using Match3.Views;
 using R3;
 using UnityEngine;
@@ -18,7 +16,7 @@ namespace Match3.Presenters
         private readonly BoardService _boardService;
         private readonly BoardView    _boardView;
         private readonly BoardConfig  _boardConfig;
-        private readonly GemFactory   _gemFactory;
+        private readonly GemConfig    _gemConfig;
 
         private readonly CompositeDisposable _disposables = new();
 
@@ -27,41 +25,65 @@ namespace Match3.Presenters
             BoardService boardService,
             BoardView    boardView,
             BoardConfig  boardConfig,
-            GemFactory   gemFactory)
+            GemConfig    gemConfig)
         {
             _boardService = boardService;
             _boardView    = boardView;
             _boardConfig  = boardConfig;
-            _gemFactory   = gemFactory;
+            _gemConfig    = gemConfig;
+
+            _boardView.Initialize(_boardConfig);
         }
 
         public void Initialize()
         {
-            _boardView.Initialize(_boardConfig);
+            // Создаём фиксированную сетку после инициализации сервиса
+            var rows = _boardService.Rows;
+            var cols = _boardService.Columns;
+            _boardView.InitializeGrid(rows, cols);
+
+            // Сразу рендерим начальное состояние
+            RenderBoard();
+
+            // Подписываемся на изменения (каскадные матчи)
+            _disposables.Add(_boardService.Board.Subscribe(visual => RenderBoard()));
         }
 
         public void RenderBoard()
         {
-            _boardView.ClearAll();
-
+            // Заполняем существующую сетку визуалами по данным сервиса
             for (var row = 0; row < _boardService.Rows; row++)
             for (var col = 0; col < _boardService.Columns; col++)
             {
-                if (!_boardService.IsNormalCell(row, col)) continue;
-
+                var cell     = new Vector2Int(row, col);
                 var nodeType = _boardService.GetNode(row, col);
-                if (nodeType == NodeType.None) continue;
 
-                SpawnGemView(new Vector2Int(row, col), nodeType);
+                if (!_boardService.IsNormalCell(row, col) || nodeType == NodeType.None)
+                {
+                    _boardView.GetGemView(cell)?.SetEmpty();
+                    continue;
+                }
+
+                SetCellVisual(cell, nodeType);
             }
         }
 
-        public void SpawnGemView(Vector2Int cell, NodeType nodeType)
+        // Обновляет визуал одной ячейки
+        public void SetCellVisual(Vector2Int cell, NodeType nodeType)
         {
-            var gemView = _gemFactory.Create(nodeType, $"Gem_{nodeType}_{cell.x}_{cell.y}");
-            if (gemView == null) return;
+            var visual = _gemConfig.GetVisual(nodeType);
+            if (visual == null)
+            {
+                Debug.LogWarning($"BoardPresenter: no visual for {nodeType}");
+                return;
+            }
 
-            _boardView.PlaceGem(cell, gemView);
+            _boardView.GetGemView(cell)?.SetVisual(nodeType, visual);
+        }
+
+        public void SetCellEmpty(Vector2Int cell)
+        {
+            _boardView.GetGemView(cell)?.SetEmpty();
         }
 
         public void Dispose() => _disposables.Dispose();

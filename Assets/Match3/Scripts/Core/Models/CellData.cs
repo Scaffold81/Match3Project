@@ -11,5 +11,15 @@ namespace Match3.Core.Models
         public CellType cellType;
         public NodeType nodeType;
         public bool hasLayer;
+
+        public CellData() { }
+        
+        // Конструктор для быстрого создания (для тестов)
+        public CellData(CellType type, NodeType node, bool layer = false)
+        {
+            cellType   = type;
+            nodeType   = node;
+            hasLayer   = layer;
+        }
     }
 }

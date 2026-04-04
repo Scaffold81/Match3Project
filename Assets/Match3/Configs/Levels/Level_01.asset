@@ -12,7 +12,91 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f742d7f78e12d6f43ac1baa25fcabaa3, type: 3}
   m_Name: Level_01
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.LevelConfig
-  <MoveLimit>k__BackingField: 0
-  <AllowedNodeTypes>k__BackingField: 
-  <Objectives>k__BackingField: []
-  <Grid>k__BackingField: []
+  <MoveLimit>k__BackingField: 1000
+  <AllowedNodeTypes>k__BackingField: 0100000002000000030000000400000005000000
+  <Objectives>k__BackingField:
+  - nodeType: 1
+    count: 10
+  - nodeType: 3
+    count: 10
+  <Grid>k__BackingField:
+  - <Cells>k__BackingField:
+    - cellType: 1
+      nodeType: 1
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 1
+      nodeType: 0
+      hasLayer: 0
+  - <Cells>k__BackingField:
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+  - <Cells>k__BackingField:
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+  - <Cells>k__BackingField:
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 1
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 1
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+  - <Cells>k__BackingField:
+    - cellType: 1
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 1
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 1
+    - cellType: 1
+      nodeType: 0
+      hasLayer: 0

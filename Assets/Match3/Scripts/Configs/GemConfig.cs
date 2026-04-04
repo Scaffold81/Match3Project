@@ -2,7 +2,6 @@
 
 using System;
 using Match3.Core.Enums;
-using Match3.Views;
 using UnityEngine;
 
 namespace Match3.Configs
@@ -25,9 +24,9 @@ namespace Match3.Configs
     [Serializable]
     public sealed class GemVisualData
     {
-        [field: SerializeField] public NodeType NodeType { get; private set; }
-        [field: SerializeField] public Sprite   Sprite  { get; private set; } = null!;
-        [field: SerializeField] public Color    Color   { get; private set; } = Color.white;
-        [field: SerializeField] public GemView  Prefab  { get; private set; } = null!;
+        [field: SerializeField] public NodeType      NodeType { get; private set; }
+        [field: SerializeField] public Sprite        Sprite   { get; private set; } = null!;
+        [field: SerializeField] public Color         Color    { get; private set; } = Color.white;
+        [field: SerializeField] public GameObject?   Prefab   { get; private set; }
     }
 }

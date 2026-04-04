@@ -9,15 +9,21 @@ namespace Match3.Views
     public sealed class LayerView : MonoBehaviour
     {
         [SerializeField] private RectTransform _layerContainer = null!;
-        [SerializeField] private GameObject _layerCellPrefab = null!;
+        [SerializeField] private GameObject    _layerCellPrefab = null!;
 
         private readonly Dictionary<Vector2Int, GameObject> _layerCells = new();
 
-        public void SpawnLayerCell(Vector2Int cell, Vector2 anchoredPosition)
+        public void SpawnLayerCell(Vector2Int cell, Vector2 anchoredPosition, float cellSize)
         {
             var go = Instantiate(_layerCellPrefab, _layerContainer);
             var rt = go.GetComponent<RectTransform>();
+
+            rt.pivot            = new Vector2(0f, 1f);
+            rt.anchorMin        = new Vector2(0f, 1f);
+            rt.anchorMax        = new Vector2(0f, 1f);
             rt.anchoredPosition = anchoredPosition;
+            rt.sizeDelta        = new Vector2(cellSize, cellSize);
+
             _layerCells[cell] = go;
         }
 

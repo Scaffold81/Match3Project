@@ -155,3 +155,4 @@ MonoBehaviour:
   _gemConfig: {fileID: 11400000, guid: 701b550674ee5084dab136b58549204c, type: 2}
   _boardConfig: {fileID: 11400000, guid: a5f15cf0257279a468674fdb40664eb6, type: 2}
   _animationConfig: {fileID: 11400000, guid: ad2d71b57d341b74ab0a76f8716c98cd, type: 2}
+  _levelConfigRepository: {fileID: 11400000, guid: e696af46a1c354b4d862b446f65159a9, type: 2}

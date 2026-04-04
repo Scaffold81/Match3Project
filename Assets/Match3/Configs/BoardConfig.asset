@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e8a525e0f2cde142b0f1b4df63111fb, type: 3}
   m_Name: BoardConfig
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.BoardConfig
-  <CellSize>k__BackingField: 1
-  <CellSpacing>k__BackingField: 0
+  <CellSize>k__BackingField: 100
+  <CellSpacing>k__BackingField: 1

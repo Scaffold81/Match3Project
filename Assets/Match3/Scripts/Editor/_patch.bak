@@ -1,0 +1,11 @@
+                if (_config != null)
+                {
+                    EditorGUILayout.LabelField(
+                        $"{_config.Rows}x{_config.Columns}",
+                        new GUIStyle(EditorStyles.miniLabel)
+                        {
+                            alignment = TextAnchor.MiddleCenter,
+                            normal    = { textColor = new Color(0.8f, 0.8f, 0.8f) }
+                        },
+                        GUILayout.Width(60f));
+                }

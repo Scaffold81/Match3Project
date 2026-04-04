@@ -1,6 +1,6 @@
 # Match-3 — Архитектурный план
 
-## Статус: 🟢 Этапы 1-6 завершены
+## Статус: 🟢 В разработке
 
 ---
 
@@ -36,15 +36,24 @@ ObjectiveData  : nodeType, count
 
 ---
 
-## 📦 LevelConfig (ScriptableObject)
+## 📦 Configs (ScriptableObjects)
 
 ```
+LevelConfigRepository         ← ProjectConfigInstaller
+└── Levels[] : LevelConfig[]  — все уровни игры
+
 LevelConfig
 ├── MoveLimit          : int             — 0 = без ограничений
 ├── AllowedNodeTypes[] : NodeType[]      — пусто = все типы
 ├── Objectives[]       : ObjectiveData[]
 └── Grid[]             : CellRow[]
     └── CellRow.Cells[]: CellData[]
+
+GemConfig
+└── Gems[]: GemVisualData      — NodeType + Sprite + Color + Prefab
+
+BoardConfig                   — CellSize, CellSpacing
+AnimationConfig               — SwapDuration, FallDuration, etc.
 ```
 
 **Логика ячейки:**
@@ -52,27 +61,25 @@ LevelConfig
 - `Normal` + `None`     → случайная фишка
 - `Normal` + `Red` etc. → конкретная фишка
 
-**Логика спауна:**
-```
-[Hidden][Hidden][Normal][Normal][Normal]
-                 ↑ спаун над первой Normal
-```
-
 ---
 
 ## 🏗️ Инфраструктура — Zenject
 
 ### ProjectContext
 ```
-ProjectConfigInstaller   → GemConfig, BoardConfig, AnimationConfig (BindInstance)
-ProjectServiceInstaller  → ISceneManagerService, Bootstrapper (IInitializable)
+ProjectConfigInstaller
+  → GemConfig, BoardConfig, AnimationConfig, LevelConfigRepository (BindInstance)
+
+ProjectServiceInstaller
+  → ISceneManagerService → SceneManagerService
+  → Bootstrapper (IInitializable)
 ```
 
 ### SceneContext (Game)
 ```
-SceneServiceInstaller    → сервисы + GameLoopController (IInitializable)
+SceneServiceInstaller    → сервисы + GameLoopController + GemFactory
 SceneViewInstaller       → Views + InputController (FromComponentInHierarchy)
-ScenePresenterInstaller  → LevelConfig (BindInstance) + Presenters
+ScenePresenterInstaller  → Presenters (BindInterfacesAndSelfTo, NonLazy)
 ```
 > ⚠️ Порядок: Service → View → Presenter
 
@@ -83,6 +90,7 @@ ScenePresenterInstaller  → LevelConfig (BindInstance) + Presenters
 | Сервис | Scope | Ответственность |
 |--------|-------|----------------|
 | SceneManagerService | Project | Загрузка сцен |
+| GemFactory | Scene | Инстанцирование GemView через Zenject |
 | BoardService | Scene | Состояние сетки |
 | MatchService | Scene | Поиск матчей |
 | SwapService | Scene | Логика свопа |
@@ -100,7 +108,7 @@ ScenePresenterInstaller  → LevelConfig (BindInstance) + Presenters
 | Контроллер | Scope | Ответственность |
 |------------|-------|----------------|
 | Bootstrapper | Project | Точка входа, переключение сцены |
-| GameLoopController | Scene | Оркестратор игрового цикла (IInitializable) |
+| GameLoopController | Scene | Оркестратор. Берёт `LevelRepository.First` для теста |
 | InputController | Scene | Тапы → SwapPresenter |
 
 ---
@@ -110,7 +118,7 @@ ScenePresenterInstaller  → LevelConfig (BindInstance) + Presenters
 | View | Ответственность |
 |------|----------------|
 | BoardView | Сетка, позиции, словарь GemView |
-| GemView | Фишка + анимации DOTween |
+| GemView | Фишка + анимации DOTween (UI/Image) |
 | LayerView | Слои под полем |
 | ObjectiveView | UI целей |
 | MoveCounterView | UI счётчика ходов |
@@ -122,22 +130,11 @@ ScenePresenterInstaller  → LevelConfig (BindInstance) + Presenters
 
 | Presenter | Связывает |
 |-----------|----------|
-| BoardPresenter | BoardService ↔ BoardView |
+| BoardPresenter | GemFactory + BoardService ↔ BoardView |
 | SwapPresenter | SwapService ↔ GemView (анимации) |
 | LayerPresenter | LayerService ↔ LayerView |
 | ObjectivePresenter | ObjectiveService ↔ ObjectiveView |
 | LevelPresenter | LevelService + MoveCounterService ↔ UI |
-
----
-
-## ⚙️ Configs
-
-| Конфиг | Содержимое |
-|--------|-----------|
-| LevelConfig | Поле, цели, лимит, типы |
-| GemConfig | Sprite + Color per NodeType |
-| BoardConfig | CellSize, CellSpacing |
-| AnimationConfig | SwapDuration, SwapReturnDuration, FallDuration, MatchDestroyDuration |
 
 ---
 
@@ -146,30 +143,28 @@ ScenePresenterInstaller  → LevelConfig (BindInstance) + Presenters
 ```
 Assets/Match3/
 ├── Configs/
-│   ├── Levels/              — LevelConfig assets
+│   ├── Levels/                    — LevelConfig assets
+│   ├── LevelConfigRepository.asset
 │   ├── GemConfig.asset
 │   ├── BoardConfig.asset
 │   └── AnimationConfig.asset
 ├── Scripts/
-│   ├── Core/Enums/          — NodeType, CellType, SceneId
-│   ├── Core/Models/         — CellData, ObjectiveData
-│   ├── Configs/             — SO классы
-│   ├── Controllers/         — Bootstrapper, GameLoopController, InputController
+│   ├── Core/Enums/
+│   ├── Core/Models/
+│   ├── Configs/                   — LevelConfig, LevelConfigRepository, GemConfig, ...
+│   ├── Controllers/               — Bootstrapper, GameLoopController, InputController
 │   ├── Services/
+│   │   ├── Factories/             — GemFactory
 │   │   ├── SceneManagement/
-│   │   ├── Board/
-│   │   ├── Match/
-│   │   ├── Swap/
-│   │   ├── Gravity/
-│   │   ├── Spawn/
-│   │   ├── Layer/
-│   │   ├── Objective/
-│   │   ├── MoveCounter/
-│   │   └── Level/
+│   │   ├── Board/ Match/ Swap/
+│   │   ├── Gravity/ Spawn/ Layer/
+│   │   ├── Objective/ MoveCounter/ Level/
 │   ├── Views/
 │   ├── Presenters/
 │   └── Installers/
-├── Prefabs/Gem/
+├── Prefabs/
+│   ├── Gems/                      — GemBase.prefab
+│   └── UI/                        — LayerCell.prefab
 └── Scenes/Bootstrap, Game
 ```
 
@@ -182,68 +177,40 @@ Bootstrap → ProjectContext → Bootstrapper.Initialize()
   → LoadSceneAsync(Game)
     → SceneContext → Installers
       → GameLoopController.Initialize()
-        → LevelService.StartLevel(config)
+        → LevelRepository.First → LevelService.StartLevel(config)
           → RenderBoard / RenderLayers / RenderObjectives
 ```
 
 ## 🔄 Поток игрового цикла
 
 ```
-InputController.Update()
-  → SwapPresenter.OnCellTapped(cell)
-    → SwapService.TrySwap(from, to)
-      ├── нет матча → OnSwapFailed → анимация возврата
-      └── есть матч → OnSwapSuccess
-            → GameLoopController.OnSwapSucceeded()
-              ├── await AnimateDestroy (DOTween)
-              ├── BoardService.RemoveNodes()
-              ├── GravityService.ApplyGravity()
-              ├── await AnimateFalls (DOTween)
-              ├── SpawnService.SpawnMissing()
-              ├── await AnimateSpawn (DOTween)
-              ├── MatchService — каскадные матчи (цикл while)
-              ├── MoveCounterService.UseMove()
-              └── LevelService.ProcessTurnResult()
+InputController → SwapPresenter.OnCellTapped()
+  → SwapService.TrySwap()
+    ├── нет матча → OnSwapFailed → анимация возврата
+    └── есть матч → OnSwapSuccess
+          → GameLoopController
+            ├── AnimateDestroy → BoardService.RemoveNodes()
+            ├── GravityService.ApplyGravity() → AnimateFalls
+            ├── SpawnService.SpawnMissing() → AnimateSpawn
+            ├── cascade loop (while matches)
+            ├── MoveCounterService.UseMove()
+            └── LevelService.ProcessTurnResult()
 ```
 
 ---
 
 ## 📋 Прогресс разработки
 
-### Этап 1 — Core Data & Enums ✅
-- [x] NodeType, CellType, SceneId
-- [x] CellData, ObjectiveData
+### Этапы 1-6 ✅ — весь код написан
 
-### Этап 2 — Configs ✅
-- [x] LevelConfig, GemConfig, BoardConfig, AnimationConfig
-
-### Этап 3 — Infrastructure ✅
-- [x] ISceneManagerService + SceneManagerService
-- [x] Bootstrapper
-- [x] ProjectConfigInstaller, ProjectServiceInstaller
-- [x] SceneServiceInstaller, SceneViewInstaller, ScenePresenterInstaller
-
-### Этап 4 — Services ✅
-- [x] BoardService, MatchService, SwapService
-- [x] GravityService, SpawnService, LayerService
-- [x] ObjectiveService, MoveCounterService, LevelService
-
-### Этап 5 — Views & Presenters ✅
-- [x] BoardView + BoardPresenter
-- [x] GemView + SwapPresenter
-- [x] LayerView + LayerPresenter
-- [x] ObjectiveView + ObjectivePresenter
-- [x] LevelResultView + MoveCounterView + LevelPresenter
-
-### Этап 6 — GameLoop & Полировка ✅
-- [x] GameLoopController (каскады, анимации, оркестрация)
-- [x] InputController
-
-### Следующие шаги — настройка в Unity
-- [ ] Создать сцены Bootstrap и Game
-- [ ] Настроить ProjectContext (ProjectConfigInstaller + ProjectServiceInstaller)
-- [ ] Настроить SceneContext (3 инсталлера, порядок важен)
-- [ ] Создать SO-ассеты (GemConfig, BoardConfig, AnimationConfig)
-- [ ] Создать первый LevelConfig
-- [ ] Настроить GameObject иерархию в Game сцене
-- [ ] Создать префаб GemView
+### Настройка в Unity ✅
+- [x] Исправлена компиляция GemFactory (режим без префабов работает автоматически)
+- [x] BoardView создаёт ячейки через код (без префабов, опционально можно назначить)
+- [x] GameLoopController создаёт тестовый уровень автоматически, если `LevelConfigRepository` пустой
+- [ ] Создать `LevelConfigRepository.asset` → `Assets/Match3/Configs/` (для сохранения разработки)
+- [ ] Добавить уровни в `LevelConfigRepository.Levels[]`
+- [ ] Назначить `LevelConfigRepository` в `ProjectConfigInstaller`
+- [ ] **Вариант А (рекомендуемый):** Создать `GemBase.prefab` → `Assets/Match3/Prefabs/Gems/` и назначить в GemConfig
+  **или Вариант Б:** Оставить Prefab null — GemFactory создаст ячейку через код автоматически
+- [ ] Заполнить `GemConfig` (Sprite + Color + (опционально) Prefab на каждый NodeType)
+- [ ] Настроить UI Scene

@@ -15,49 +15,41 @@ using Zenject;
 
 namespace Match3.Services.Level
 {
-    public enum LevelState
-    {
-        Idle,
-        Playing,
-        Won,
-        Lost,
-    }
+    public enum LevelState { Idle, Playing, Won, Lost }
 
     public sealed class LevelService : IDisposable
     {
-        private readonly BoardService _boardService;
-        private readonly MatchService _matchService;
-        private readonly SpawnService _spawnService;
-        private readonly LayerService _layerService;
-        private readonly ObjectiveService _objectiveService;
+        private readonly BoardService       _boardService;
+        private readonly MatchService       _matchService;
+        private readonly SpawnService       _spawnService;
+        private readonly LayerService       _layerService;
+        private readonly ObjectiveService   _objectiveService;
         private readonly MoveCounterService _moveCounterService;
 
         private readonly ReactiveProperty<LevelState> _state = new(LevelState.Idle);
-        private readonly Subject<Unit> _onLevelWon = new();
+        private readonly Subject<Unit> _onLevelWon  = new();
         private readonly Subject<Unit> _onLevelLost = new();
-
         private readonly CompositeDisposable _disposables = new();
 
         public ReadOnlyReactiveProperty<LevelState> State => _state;
-        public Observable<Unit> OnLevelWon => _onLevelWon;
+        public Observable<Unit> OnLevelWon  => _onLevelWon;
         public Observable<Unit> OnLevelLost => _onLevelLost;
-
         public LevelConfig? CurrentConfig { get; private set; }
 
         [Inject]
         public LevelService(
-            BoardService boardService,
-            MatchService matchService,
-            SpawnService spawnService,
-            LayerService layerService,
-            ObjectiveService objectiveService,
+            BoardService       boardService,
+            MatchService       matchService,
+            SpawnService       spawnService,
+            LayerService       layerService,
+            ObjectiveService   objectiveService,
             MoveCounterService moveCounterService)
         {
-            _boardService = boardService;
-            _matchService = matchService;
-            _spawnService = spawnService;
-            _layerService = layerService;
-            _objectiveService = objectiveService;
+            _boardService       = boardService;
+            _matchService       = matchService;
+            _spawnService       = spawnService;
+            _layerService       = layerService;
+            _objectiveService   = objectiveService;
             _moveCounterService = moveCounterService;
         }
 
@@ -67,36 +59,36 @@ namespace Match3.Services.Level
                 throw new ArgumentNullException(nameof(config));
 
             CurrentConfig = config;
-            _state.Value = LevelState.Playing;
 
+            // ── Сначала инициализируем все системы ──────────────────────
             _boardService.Initialize(config);
             _layerService.Initialize(config);
             _objectiveService.Initialize(config);
             _moveCounterService.Initialize(config.MoveLimit);
             _spawnService.Initialize(config);
-
             _spawnService.SpawnMissing();
 
             SubscribeToEvents();
+
+            // ── Только потом переключаем состояние ──────────────────────
+            // R3 вызывает подписчиков синхронно — OnLevelStarted сработает
+            // здесь, когда доска уже полностью готова
+            _state.Value = LevelState.Playing;
         }
 
         public void ProcessTurnResult()
         {
             if (_state.Value != LevelState.Playing) return;
-
             CheckWinCondition();
             if (_state.Value != LevelState.Playing) return;
-
             CheckLoseCondition();
         }
 
         private void CheckWinCondition()
         {
             var objectivesComplete = _objectiveService.IsAllCompleted;
-            var layersComplete = _layerService.TotalLayerCells == 0 || _layerService.IsAllCleared;
-
-            if (objectivesComplete && layersComplete)
-                Win();
+            var layersComplete     = _layerService.TotalLayerCells == 0 || _layerService.IsAllCleared;
+            if (objectivesComplete && layersComplete) Win();
         }
 
         private void CheckLoseCondition()
