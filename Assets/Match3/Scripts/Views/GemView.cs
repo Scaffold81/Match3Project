@@ -7,14 +7,14 @@ using Match3.Core.Enums;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using Zenject;
 
 namespace Match3.Views
 {
-    [RequireComponent(typeof(Image))]
     public sealed class GemView : MonoBehaviour, IPointerClickHandler
     {
-        private Image         _image         = null!;
-        private RectTransform _rectTransform = null!;
+        [SerializeField] private Image _image;
+        private RectTransform _rectTransform;
         private Tweener?      _currentTween;
 
         public NodeType      NodeType  { get; private set; } = NodeType.None;
@@ -25,10 +25,10 @@ namespace Match3.Views
 
         private void Awake()
         {
-            _image               = GetComponent<Image>();
             _rectTransform       = GetComponent<RectTransform>();
             _image.raycastTarget = true;
-            _image.color         = Color.clear;
+            if (_image != null)
+                _image.color = Color.clear;
         }
 
         public void SetVisual(NodeType nodeType, GemVisualData visual)
