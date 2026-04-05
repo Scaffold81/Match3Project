@@ -7,6 +7,10 @@
 - ✅ code_search готов к использованию
 
 ### Сделано
+- ✅ [GemView] Добавлен [SerializeField] к полю Image для ручного назначения через Inspector
+- ✅ Убрана GetComponent<Image>() из Awake() — поле инициализируется Unity автоматически
+- ✅ Убран [RequireComponent(typeof(Image))] — не требуется принудительное добавление компонента
+- ✅ Добавлена проверка _image != null при установке цвета
 - ✅ Изучена архитектура Match3 проекта (Zenject + R3 + UniTask)
 - ✅ Прочитана документация и ключевые файлы
 - ✅ Понятна структура: Configs → Services → Presenters → Views
