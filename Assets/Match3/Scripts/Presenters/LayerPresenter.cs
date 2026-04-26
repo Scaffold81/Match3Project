@@ -4,7 +4,6 @@ using System;
 using Match3.Services.Layer;
 using Match3.Views;
 using R3;
-using UnityEngine;
 using Zenject;
 
 namespace Match3.Presenters
@@ -45,8 +44,7 @@ namespace Match3.Presenters
                 if (!_layerService.HasLayer(row, col)) continue;
 
                 var anchoredPos = _boardView.GetAnchoredPosition(row, col);
-                // CellSize берём из BoardView — он уже вычислен под реальный экран
-                _layerView.SpawnLayerCell(new Vector2Int(row, col), anchoredPos, _boardView.CellSize);
+                _layerView.SpawnLayerCell(new UnityEngine.Vector2Int(row, col), anchoredPos, _boardView.CellSize);
             }
         }
 

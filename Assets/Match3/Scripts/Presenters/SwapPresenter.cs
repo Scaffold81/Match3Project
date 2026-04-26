@@ -2,79 +2,39 @@
 
 using System;
 using Match3.Configs;
+using Match3.Core;
 using Match3.Services.Swap;
-using Match3.Views;
 using R3;
-using UnityEngine;
 using Zenject;
 
 namespace Match3.Presenters
 {
+    /// <summary>
+    /// Отвечает только за визуальный фидбек при свапе.
+    /// Логика ввода и валидации — в GameLoopController + BoardInputHandler.
+    /// </summary>
     public sealed class SwapPresenter : IInitializable, IDisposable
     {
         private readonly SwapService     _swapService;
-        private readonly BoardView       _boardView;
-        private readonly AnimationConfig _animationConfig;
+        private readonly AnimationConfig _animConfig;
 
         private readonly CompositeDisposable _disposables = new();
-        private Vector2Int? _selectedCell;
 
         [Inject]
-        public SwapPresenter(
-            SwapService     swapService,
-            BoardView       boardView,
-            AnimationConfig animationConfig)
+        public SwapPresenter(SwapService swapService, AnimationConfig animConfig)
         {
-            _swapService     = swapService;
-            _boardView       = boardView;
-            _animationConfig = animationConfig;
+            _swapService = swapService;
+            _animConfig  = animConfig;
         }
 
         public void Initialize()
         {
-            _boardView.OnGemClicked += OnGemTapped;
-
-            // Своп удался — меняем визуал + пульс анимация
-            _swapService.OnSwapSuccess
-                .Subscribe(data =>
-                {
-                    _boardView.SwapVisualsAt(data.from, data.to);
-                    _boardView.GetGemView(data.from)?.PlaySwapPulse(_animationConfig.SwapDuration);
-                    _boardView.GetGemView(data.to)?.PlaySwapPulse(_animationConfig.SwapDuration);
-                    _selectedCell = null;
-                })
-                .AddTo(_disposables);
-
-            // Своп не удался — меняем и сразу возвращаем обратно (визуально)
-            _swapService.OnSwapFailed
-                .Subscribe(data =>
-                {
-                    // Меняем визуал туда-обратно с паузой
-                    _boardView.SwapVisualsAt(data.from, data.to);
-                    _boardView.GetGemView(data.from)?.PlaySwapPulse(_animationConfig.SwapDuration, () =>
-                        _boardView.SwapVisualsAt(data.from, data.to));
-                    _selectedCell = null;
-                })
-                .AddTo(_disposables);
+            // Визуальные эффекты можно расширить здесь:
+            // например, подсвечивать подсказки через _swapService.FindAllPossibleSwaps()
+            _ = _swapService;
+            _ = _animConfig;
         }
 
-        private void OnGemTapped(Vector2Int cell)
-        {
-            if (_selectedCell == null)
-            {
-                _selectedCell = cell;
-                return;
-            }
-
-            var from = _selectedCell.Value;
-            _selectedCell = null;
-            _swapService.TrySwap(from, cell);
-        }
-
-        public void Dispose()
-        {
-            _boardView.OnGemClicked -= OnGemTapped;
-            _disposables.Dispose();
-        }
+        public void Dispose() => _disposables.Dispose();
     }
 }

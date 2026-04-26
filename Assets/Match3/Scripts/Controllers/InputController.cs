@@ -1,6 +1,2 @@
-#nullable enable
-
-// InputController удалён — ввод теперь обрабатывается через
-// GemView (IPointerClickHandler) → BoardView.OnGemClicked → SwapPresenter
-// Удали этот файл и GameObject InputHandler из сцены Game.
-
+// Этот файл можно удалить.
+// Ввод обрабатывается через GemView (IPointerClickHandler) → BoardView.OnGemClicked → SwapPresenter.

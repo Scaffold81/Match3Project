@@ -15,17 +15,18 @@ namespace Match3.Configs
         [field: SerializeField] public ObjectiveData[] Objectives { get; private set; } = Array.Empty<ObjectiveData>();
         [field: SerializeField] public CellRow[] Grid { get; private set; } = Array.Empty<CellRow>();
 
-        public int Rows => Grid.Length;
+        public int Rows    => Grid.Length;
         public int Columns => Grid.Length > 0 ? Grid[0].Cells.Length : 0;
 
         public CellData GetCell(int row, int col) => Grid[row].Cells[col];
 
-        // Конструктор для быстрого создания (для тестов)
-        public LevelConfig(CellRow[] grid, int moveLimit, ObjectiveData[] objectives)
+        public static LevelConfig CreateForTest(CellRow[] grid, int moveLimit, ObjectiveData[] objectives)
         {
-            Grid      = grid;
-            MoveLimit = moveLimit;
-            Objectives= objectives;
+            var config = CreateInstance<LevelConfig>();
+            config.Grid       = grid;
+            config.MoveLimit  = moveLimit;
+            config.Objectives = objectives;
+            return config;
         }
     }
 
@@ -33,10 +34,9 @@ namespace Match3.Configs
     public sealed class CellRow
     {
         [field: SerializeField] public CellData[] Cells { get; set; } = Array.Empty<CellData>();
-        
+
         public CellRow() { }
-        
-        // Конструктор для быстрого создания (для тестов)
+
         public CellRow(CellData[] cells)
         {
             Cells = cells;

@@ -2,42 +2,51 @@
 
 using System;
 using Match3.Configs;
-using Match3.Core.Enums;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Match3.Views
 {
     public sealed class BoardView : MonoBehaviour
     {
-        // Prefab опционален — если null, создаём ячейки через код (без ассетов)
-        [field: SerializeField] private GameObject? _gemViewPrefabObj = null;
-        [field: SerializeField] private RectTransform _gemContainer  = null!;
-        [field: SerializeField] private RectTransform _cellContainer = null!;
+        [SerializeField] private RectTransform _gemContainer  = null!;
+        [SerializeField] private RectTransform _cellContainer = null!;
 
-        private BoardConfig _boardConfig = null!;
-        private float       _cellSize;
-        private GemView[,]  _grid = new GemView[0, 0];
+        /// <summary>
+        /// Оверлей для гемов во время анимации.
+        /// Должен лежать выше GemContainer в иерархии Canvas,
+        /// чтобы летящий гем рисовался поверх всех остальных.
+        /// </summary>
+        [SerializeField] private RectTransform _dragLayer = null!;
+
+        private BoardConfig _boardConfig   = null!;
+        private GameObject  _gemViewPrefab = null!;
+
+        private float _cellSize;
+        private int   _rows;
+        private int   _cols;
+        private bool  _layoutReady;
 
         public RectTransform RectTransform => (RectTransform)transform;
+        public RectTransform GemContainer  => _gemContainer;
+
         public float CellSize    => _cellSize;
-        public float CellSpacing => _boardConfig.CellSpacing;
+        public float CellSpacing => _boardConfig != null ? _boardConfig.CellSpacing : 0f;
+        public int   Rows        => _rows;
+        public int   Columns     => _cols;
 
-        public event Action<Vector2Int>? OnGemClicked;
+        // ── Инициализация ────────────────────────────────────────────────────
 
-        public void Initialize(BoardConfig boardConfig)
+        public void Initialize(BoardConfig boardConfig, GameObject gemViewPrefab)
         {
-            _boardConfig = boardConfig;
+            _boardConfig   = boardConfig;
+            _gemViewPrefab = gemViewPrefab;
         }
 
-        // Создаёт фиксированную сетку GemView — вызывается один раз при старте уровня
-        public void InitializeGrid(int rows, int cols)
+        public void InitializeLayout(int rows, int cols)
         {
-            // Чистим старую сетку
-            foreach (var view in _grid)
-                if (view != null) Destroy(view.gameObject);
+            _rows = rows;
+            _cols = cols;
 
-            // Вычисляем cellSize из ширины Board
             var boardWidth  = RectTransform.rect.width;
             var usableWidth = boardWidth - _boardConfig.BoardPadding * 2f;
             _cellSize = (usableWidth - _boardConfig.CellSpacing * (cols - 1)) / cols;
@@ -54,71 +63,97 @@ namespace Match3.Views
                 _cellContainer.anchoredPosition = new Vector2(_boardConfig.BoardPadding, 0f);
             }
 
-            // Создаём по одному GemView на каждую ячейку (через код или префаб)
-            _grid = new GemView[rows, cols];
-            for (var row = 0; row < rows; row++)
-            for (var col = 0; col < cols; col++)
-            {
-                GameObject? prefabToUse = null;
-                
-                // Если префаб назначен — используем его, иначе создаём через код
-                if (_gemViewPrefabObj != null)
-                    prefabToUse = _gemViewPrefabObj;
-
-                GemView view;
-                if (prefabToUse == null)
-                {
-                    // Создание через код (без ассетов)
-                    var gemObj = new GameObject($"GemView_{row}_{col}");
-                    view = gemObj.AddComponent<GemView>();
-                }
-                else
-                {
-                    // Через префаб (если назначен)
-                    prefabToUse.name = $"GemView_{row}_{col}";
-                    view = Instantiate(prefabToUse, _gemContainer).GetComponent<GemView>();
-                }
-
-                var rt = view.RectTransform;
-                
-                // Позиционирование
-                rt.pivot            = new Vector2(0f, 1f);
-                rt.anchorMin        = new Vector2(0f, 1f);
-                rt.anchorMax        = new Vector2(0f, 1f);
-                rt.anchoredPosition = GetAnchoredPosition(row, col);
-                rt.sizeDelta        = new Vector2(_cellSize, _cellSize);
-
-                var r = row;
-                var c = col;
-                view.OnClicked += () => OnGemClicked?.Invoke(new Vector2Int(r, c));
-
-                _grid[row, col] = view;
-            }
+            _layoutReady = true;
         }
+
+        // ── Gem factory ───────────────────────────────────────────────────────
+
+        public GemView InstantiateGem(int row, int col)
+        {
+            if (!_layoutReady)
+                throw new InvalidOperationException("Call InitializeLayout before InstantiateGem");
+
+            var view = Instantiate(_gemViewPrefab, _gemContainer).GetComponent<GemView>();
+            view.gameObject.name = $"Gem_{row}_{col}";
+
+            ApplySlotTransform(view.RectTransform, new Vector2Int(row, col));
+
+            return view;
+        }
+
+        public void DestroyGem(GemView gem)
+        {
+            if (gem != null)
+                Destroy(gem.gameObject);
+        }
+
+        // ── Позиции ───────────────────────────────────────────────────────────
 
         public Vector2 GetAnchoredPosition(int row, int col)
         {
+            if (!_layoutReady)
+                throw new InvalidOperationException("Call InitializeLayout before GetAnchoredPosition");
+
             var step = _cellSize + _boardConfig.CellSpacing;
-            return new Vector2(col * step, -row * step);
+            return new Vector2(
+                col  * step + _boardConfig.GemPadding,
+                -row * step - _boardConfig.GemPadding
+            );
         }
 
-        public GemView? GetGemView(Vector2Int cell)
+        public Vector2 GetAnchoredPosition(Vector2Int cell) =>
+            GetAnchoredPosition(cell.x, cell.y);
+
+        /// <summary>
+        /// Мировая позиция пивота (top-left) слота ячейки.
+        /// Используется для DOMove во время анимации из DragLayer.
+        /// </summary>
+        public Vector3 GetSlotWorldPosition(Vector2Int cell)
         {
-            if (cell.x < 0 || cell.x >= _grid.GetLength(0)) return null;
-            if (cell.y < 0 || cell.y >= _grid.GetLength(1)) return null;
-            return _grid[cell.x, cell.y];
+            var ap   = GetAnchoredPosition(cell);
+            var rect = _gemContainer.rect;
+
+            // anchoredPosition задаёт смещение пивота гема от точки привязки (0,1).
+            // Точка привязки (0,1) в local-space контейнера = (rect.xMin, rect.yMax).
+            var localPos = new Vector3(rect.xMin + ap.x, rect.yMax + ap.y, 0f);
+            return _gemContainer.TransformPoint(localPos);
         }
 
-        public GemView? GetGemView(int row, int col) =>
-            GetGemView(new Vector2Int(row, col));
+        // ── Управление родителем ──────────────────────────────────────────────
 
-        // Обменивает визуал двух ячеек без движения
-        public void SwapVisualsAt(Vector2Int a, Vector2Int b)
+        /// <summary>
+        /// Перемещает гем в DragLayer, сохраняя визуальную позицию.
+        /// Вызывать ДО начала анимации.
+        /// </summary>
+        public void ReparentToOverlay(GemView gem)
         {
-            var viewA = GetGemView(a);
-            var viewB = GetGemView(b);
-            if (viewA == null || viewB == null) return;
-            viewA.SwapWith(viewB);
+            gem.RectTransform.SetParent(_dragLayer, worldPositionStays: true);
+        }
+
+        /// <summary>
+        /// Возвращает гем в GemContainer и восстанавливает параметры слота.
+        /// worldPositionStays: true — Unity пересчитывает anchoredPosition под новый контейнер,
+        /// затем ApplySlotTransform выставляет точные значения слота без визуального скачка.
+        /// Вызывать ПОСЛЕ завершения анимации (в onComplete).
+        /// </summary>
+        public void ReparentToContainer(GemView gem, Vector2Int slot)
+        {
+            gem.RectTransform.SetParent(_gemContainer, worldPositionStays: true);
+            ApplySlotTransform(gem.RectTransform, slot);
+        }
+
+        // ── Вспомогательное ───────────────────────────────────────────────────
+
+        private void ApplySlotTransform(RectTransform rt, Vector2Int slot)
+        {
+            var gemSize = _cellSize - _boardConfig.GemPadding * 2f;
+
+            rt.pivot            = new Vector2(0f, 1f);
+            rt.anchorMin        = new Vector2(0f, 1f);
+            rt.anchorMax        = new Vector2(0f, 1f);
+            rt.anchoredPosition = GetAnchoredPosition(slot);
+            rt.sizeDelta        = new Vector2(gemSize, gemSize);
+            rt.localScale       = Vector3.one;
         }
     }
 }

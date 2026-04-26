@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using Match3.Services.Board;
-using Match3.Services.Match;
 using R3;
 using UnityEngine;
 using Zenject;
@@ -13,63 +12,85 @@ namespace Match3.Services.Swap
     public sealed class SwapService : IDisposable
     {
         private readonly BoardService _boardService;
-        private readonly MatchService _matchService;
 
         private readonly Subject<(Vector2Int from, Vector2Int to)> _onSwapRequested = new();
-        private readonly Subject<(Vector2Int from, Vector2Int to)> _onSwapSuccess = new();
-        private readonly Subject<(Vector2Int from, Vector2Int to)> _onSwapFailed = new();
-
         public Observable<(Vector2Int from, Vector2Int to)> OnSwapRequested => _onSwapRequested;
-        public Observable<(Vector2Int from, Vector2Int to)> OnSwapSuccess => _onSwapSuccess;
-        public Observable<(Vector2Int from, Vector2Int to)> OnSwapFailed => _onSwapFailed;
 
-        private bool _isLocked;
+        private bool        _isLocked;
+        private Vector2Int? _firstCell;
 
         [Inject]
-        public SwapService(BoardService boardService, MatchService matchService)
+        public SwapService(BoardService boardService)
         {
             _boardService = boardService;
-            _matchService = matchService;
         }
 
         public void Lock() => _isLocked = true;
-        public void Unlock() => _isLocked = false;
 
-        public bool TrySwap(Vector2Int from, Vector2Int to)
+        public void Unlock()
         {
-            if (_isLocked) return false;
-            if (!AreNeighbors(from, to)) return false;
-            if (!_boardService.IsNormalCell(from.x, from.y)) return false;
-            if (!_boardService.IsNormalCell(to.x, to.y)) return false;
+            _isLocked  = false;
+            _firstCell = null;
+        }
 
-            _onSwapRequested.OnNext((from, to));
-            _boardService.SwapNodes(from, to);
-
-            var board = _boardService.Board.CurrentValue;
-            var matches = _matchService.FindMatches(board, _boardService.Rows, _boardService.Columns);
-
-            if (matches.Count > 0)
+        /// <summary>
+        /// Вызывается при клике на ячейку.
+        /// Первый клик — запоминаем. Второй клик на соседа — запускаем своп.
+        /// </summary>
+        public void TrySelect(Vector2Int pos)
+        {
+            if (_isLocked)
             {
-                _onSwapSuccess.OnNext((from, to));
-                return true;
+                Debug.LogWarning($"[SwapService] TrySelect({pos}) — ввод заблокирован, игнорируем");
+                return;
             }
 
-            _boardService.SwapNodes(from, to);
-            _onSwapFailed.OnNext((from, to));
-            return false;
+            if (!_boardService.IsNormalCell(pos))
+            {
+                Debug.LogWarning($"[SwapService] TrySelect({pos}) — не нормальная ячейка");
+                return;
+            }
+
+            if (!_boardService.TryGetCell(pos, out var cell) || !cell.CanBeMoved)
+            {
+                Debug.LogWarning($"[SwapService] TrySelect({pos}) — ячейка не может двигаться");
+                return;
+            }
+
+            if (_firstCell == null)
+            {
+                _firstCell = pos;
+                Debug.LogWarning($"[SwapService] Первая фишка выбрана: {pos}");
+                return;
+            }
+
+            var first = _firstCell.Value;
+
+            if (first == pos)
+            {
+                Debug.LogWarning($"[SwapService] Клик по той же фишке: {pos} — отменяем выбор");
+                _firstCell = null;
+                return;
+            }
+
+            if (!_boardService.AreNeighbors(first, pos))
+            {
+                Debug.LogWarning($"[SwapService] {pos} не сосед для {first} — переназначаем первую на {pos}");
+                _firstCell = pos;
+                return;
+            }
+
+            Debug.LogWarning($"[SwapService] Вторая фишка выбрана: {pos} — запрашиваем своп {first} → {pos}");
+            _firstCell = null;
+
+            _boardService.LockCell(first, true);
+            _boardService.LockCell(pos,   true);
+            _onSwapRequested.OnNext((first, pos));
         }
 
-        private bool AreNeighbors(Vector2Int a, Vector2Int b)
-        {
-            var diff = new Vector2Int(Math.Abs(a.x - b.x), Math.Abs(a.y - b.y));
-            return (diff.x == 1 && diff.y == 0) || (diff.x == 0 && diff.y == 1);
-        }
+        public List<(Vector2Int from, Vector2Int to)> FindAllPossibleSwaps() =>
+            _boardService.FindAllPossibleSwaps();
 
-        public void Dispose()
-        {
-            _onSwapRequested.Dispose();
-            _onSwapSuccess.Dispose();
-            _onSwapFailed.Dispose();
-        }
+        public void Dispose() => _onSwapRequested.Dispose();
     }
 }

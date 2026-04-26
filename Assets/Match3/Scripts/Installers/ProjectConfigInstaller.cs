@@ -8,10 +8,10 @@ namespace Match3.Installers
 {
     public sealed class ProjectConfigInstaller : MonoInstaller
     {
-        [SerializeField] private GemConfig              _gemConfig              = null!;
-        [SerializeField] private BoardConfig            _boardConfig            = null!;
-        [SerializeField] private AnimationConfig        _animationConfig        = null!;
-        [SerializeField] private LevelConfigRepository  _levelConfigRepository  = null!;
+        [SerializeField] private GemConfig             _gemConfig             = null!;
+        [SerializeField] private BoardConfig           _boardConfig           = null!;
+        [SerializeField] private AnimationConfig       _animationConfig       = null!;
+        [SerializeField] private LevelConfigRepository _levelConfigRepository = null!;
 
         public override void InstallBindings()
         {

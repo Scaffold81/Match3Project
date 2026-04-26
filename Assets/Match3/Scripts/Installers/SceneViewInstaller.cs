@@ -10,6 +10,7 @@ namespace Match3.Installers
         public override void InstallBindings()
         {
             Container.Bind<BoardView>().FromComponentInHierarchy().AsSingle();
+            Container.Bind<BoardInputHandler>().FromComponentInHierarchy().AsSingle();
             Container.Bind<LayerView>().FromComponentInHierarchy().AsSingle();
             Container.Bind<ObjectiveView>().FromComponentInHierarchy().AsSingle();
             Container.Bind<MoveCounterView>().FromComponentInHierarchy().AsSingle();

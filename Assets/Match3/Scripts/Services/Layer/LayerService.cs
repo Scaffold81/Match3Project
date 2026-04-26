@@ -14,23 +14,23 @@ namespace Match3.Services.Layer
         private bool[,] _layers = new bool[0, 0];
         private int _totalLayerCells;
 
-        private readonly ReactiveProperty<int> _clearedCount = new(0);
-        private readonly Subject<Vector2Int> _onLayerCleared = new();
-        private readonly Subject<Unit> _onAllLayersCleared = new();
+        private readonly ReactiveProperty<int> _clearedCount   = new(0);
+        private readonly Subject<Vector2Int>   _onLayerCleared = new();
+        private readonly Subject<Unit>         _onAllLayersCleared = new();
 
-        public ReadOnlyReactiveProperty<int> ClearedCount => _clearedCount;
-        public Observable<Vector2Int> OnLayerCleared => _onLayerCleared;
-        public Observable<Unit> OnAllLayersCleared => _onAllLayersCleared;
+        public ReadOnlyReactiveProperty<int> ClearedCount    => _clearedCount;
+        public Observable<Vector2Int>        OnLayerCleared  => _onLayerCleared;
+        public Observable<Unit>              OnAllLayersCleared => _onAllLayersCleared;
 
-        public int TotalLayerCells => _totalLayerCells;
-        public bool IsAllCleared => _clearedCount.Value >= _totalLayerCells && _totalLayerCells > 0;
+        public int  TotalLayerCells => _totalLayerCells;
+        public bool IsAllCleared    => _clearedCount.Value >= _totalLayerCells && _totalLayerCells > 0;
 
         public void Initialize(LevelConfig config)
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
 
-            _layers = new bool[config.Rows, config.Columns];
+            _layers         = new bool[config.Rows, config.Columns];
             _totalLayerCells = 0;
             _clearedCount.Value = 0;
 
