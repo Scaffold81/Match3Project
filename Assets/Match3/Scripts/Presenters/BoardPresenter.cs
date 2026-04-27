@@ -43,10 +43,8 @@ namespace Match3.Presenters
 
         // ── Setup ─────────────────────────────────────────────────────────────
 
-        public void InitializeLayout()
-        {
+        public void InitializeLayout() =>
             _boardView.InitializeLayout(_boardService.Rows, _boardService.Columns);
-        }
 
         public void CreateGems(IEnumerable<(Vector2Int pos, NodeType type)> spawnList)
         {
@@ -67,14 +65,28 @@ namespace Match3.Presenters
             return view;
         }
 
-        // ── Swap ─────────────────────────────────────────────────────────────
-
         /// <summary>
-        /// Своп: оба гема в DragLayer → летят → обратно в GemContainer.
-        /// Данные УЖЕ обменяны до вызова.
-        /// viewFrom визуально стоит в from → летит на to.
-        /// viewTo   визуально стоит в to   → летит на from.
+        /// Создаёт супер-фишку: цвет + иконка типа.
+        /// Анимирует особым спавном (пульс).
         /// </summary>
+        public GemView CreateSuperGemAt(Vector2Int pos, NodeType nodeType, SuperGemType superGemType)
+        {
+            var view = CreateGemAt(pos, nodeType);
+
+            var iconData = _gemConfig.GetSuperGemIcon(superGemType);
+            if (iconData != null)
+                view.SetSuperIcon(iconData);
+            else
+                view.SetSuperGemType(superGemType);
+
+            view.PlaySuperSpawn(_animConfig.FallDuration);
+
+            Debug.LogWarning($"[BoardPresenter] Супер-фишка создана: {superGemType} ({nodeType}) в {pos}");
+            return view;
+        }
+
+        // ── Swap ──────────────────────────────────────────────────────────────
+
         public async UniTask AnimateSwapAsync(
             Vector2Int from, Vector2Int to,
             IGemView gemFrom, IGemView gemTo,
@@ -109,12 +121,6 @@ namespace Match3.Presenters
             Debug.LogWarning($"[BoardPresenter] AnimateSwapAsync завершён: viewFrom→{to}, viewTo→{from}");
         }
 
-        /// <summary>
-        /// Возврат свопа (матч не найден).
-        /// Данные УЖЕ возвращены обратно до вызова.
-        /// viewFrom стоит в from → летит на to (своё исходное место).
-        /// viewTo   стоит в to   → летит на from (своё исходное место).
-        /// </summary>
         public async UniTask AnimateReturnSwapAsync(
             Vector2Int from, Vector2Int to,
             IGemView gemFrom, IGemView gemTo,
@@ -151,14 +157,6 @@ namespace Match3.Presenters
 
         // ── Falls ─────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Падение: каждый гем в DragLayer → падает → обратно в GemContainer.
-        /// Вызывать ПОСЛЕ ComputeAndApplyFalls — gem.CurrentIndex уже = to.
-        ///
-        /// НЕ используем WhenAll+TCS: если DOTween OnComplete не срабатывает
-        /// (GameObject уничтожен, исключение в колбеке), TCS зависает навсегда.
-        /// Все падения одинаковой длины (FallDuration) → Delay = гарантированное завершение.
-        /// </summary>
         public async UniTask AnimateFallsAsync(
             IEnumerable<(Vector2Int from, Vector2Int to)> moves,
             CancellationToken ct)
@@ -190,11 +188,6 @@ namespace Match3.Presenters
 
         // ── Destroy ───────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Уничтожение матча.
-        /// TCS здесь безопасен: RemoveGem + DestroyGem вызываются в OnComplete
-        /// до того как объект реально удаляется — SetLink обеспечивает Kill при Destroy.
-        /// </summary>
         public async UniTask AnimateDestroyMatchAsync(GemMatch match, CancellationToken ct)
         {
             var tasks = new List<UniTask>(match.MatchedGems.Count);
@@ -210,6 +203,40 @@ namespace Match3.Presenters
                 gemView.PlayDestroy(_animConfig.MatchDestroyDuration, () =>
                 {
                     _boardService.RemoveGem(pos);
+                    _boardView.DestroyGem(gemView);
+                    tcs.TrySetResult();
+                });
+
+                tasks.Add(tcs.Task);
+            }
+
+            if (tasks.Count > 0)
+                await UniTask.WhenAll(tasks).AttachExternalCancellation(ct);
+        }
+
+        /// <summary>
+        /// Уничтожение произвольного набора позиций (взрывы супер-фишек).
+        /// </summary>
+        public async UniTask AnimateDestroyCellsAsync(
+            IEnumerable<Vector2Int> cells,
+            CancellationToken ct)
+        {
+            var tasks = new List<UniTask>();
+
+            foreach (var pos in cells)
+            {
+                var gem = _boardService.GetGem(pos);
+                if (gem == null) continue;
+
+                var gemView = gem as GemView;
+                if (gemView == null) continue;
+
+                var capturedPos = pos;
+                var tcs         = new UniTaskCompletionSource();
+
+                gemView.PlayDestroy(_animConfig.MatchDestroyDuration, () =>
+                {
+                    _boardService.RemoveGem(capturedPos);
                     _boardView.DestroyGem(gemView);
                     tcs.TrySetResult();
                 });

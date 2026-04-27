@@ -1,28 +1,56 @@
 # Match-3 — Архитектурный план
 
 > ⚠️ Читай этот файл перед любой задачей. Держи актуальным.
-> 📋 Прогресс разработки → `ROADMAP.md`
-> 🎮 Механики и геймдизайн → `GDD.md`
 
 ---
 
 ## 🗂️ Enums
 
 ```csharp
-public enum NodeType { None, Red, Blue, Green, Yellow, Purple, Orange }
-public enum CellType { Normal, Hidden }
-public enum SceneId  { Bootstrap, Game }
-public enum LevelState { Idle, Playing, Won, Lost }
+public enum NodeType     { None, Red, Blue, Green, Yellow, Purple, Orange }
+public enum SuperGemType { None, HorizontalArrow, VerticalArrow, ColorBomb, Bomb, MegaBomb }
+public enum CellType     { Normal, Hidden }
+public enum SceneId      { Bootstrap, Game }
+public enum LevelState   { Idle, Playing, Won, Lost }
 ```
+
+---
+
+## 💎 Супер-фишки
+
+| Тип | Триггер | Эффект |
+|-----|---------|--------|
+| `HorizontalArrow` | 4 в ряд горизонталь | Сносит всю строку |
+| `VerticalArrow` | 4 в ряд вертикаль | Сносит весь столбец |
+| `ColorBomb` | 5 подряд (прямая линия) | Сносит все фишки своего цвета |
+| `Bomb` | T или L-форма (5 клеток) | Взрыв 3×3 |
+| `MegaBomb` | 6+ клеток в матче | Взрыв 5×5 |
+
+**Правила спавна:**
+- Спавнится в `OriginPoint` матча (позиция свопнутого гема, или центроид)
+- Хранит `NodeType` (цвет) + `SuperGemType` (способность)
+- Визуал: цветная фишка + иконка-оверлей из `GemConfig.SuperGemIcons`
+
+**Активация:** супер-фишка попадает в матч → `CollectExplosionCells` добавляет её область
+к уничтожению. Комбо-свопы — второй этап.
 
 ---
 
 ## 📦 Data Models
 
 ```
-CellData       : cellType, nodeType, hasLayer
-ObjectiveData  : nodeType, count
+CellData          : cellType, nodeType, hasLayer
+ObjectiveData     : nodeType, count
 ObjectiveProgress : NodeType, Required, Collected, IsCompleted  ← в LevelService
+
+GemMatch:
+  MatchingCells[]    : List<Vector2Int>
+  MatchedGems[]      : List<IGemView>
+  OriginPoint        : Vector2Int
+  MatchNodeType      : NodeType
+  SuperGemToSpawn    : SuperGemType   ← вычисляется ComputeSuperGem()
+  SuperGemSpawnPos   : Vector2Int
+  HasSuperGemSpawn   : bool
 ```
 
 ---
@@ -31,26 +59,17 @@ ObjectiveProgress : NodeType, Required, Collected, IsCompleted  ← в LevelServ
 
 ```
 LevelConfigRepository         ← ProjectConfigInstaller
-└── Levels[] : LevelConfig[]  — все уровни игры
-
 LevelConfig
-├── MoveLimit          : int             — 0 = без ограничений
-├── AllowedNodeTypes[] : NodeType[]      — пусто = все типы
-├── Objectives[]       : ObjectiveData[]
-└── Grid[]             : CellRow[]
-    └── CellRow.Cells[]: CellData[]
+├── MoveLimit, AllowedNodeTypes[], Objectives[], Grid[]
 
 GemConfig
-└── Gems[]: GemVisualData      — NodeType + Sprite + Color + Prefab
+├── GemViewPrefab             — базовый префаб
+├── Gems[]: GemVisualData     — NodeType + Sprite + Color
+└── SuperGemIcons[]: SuperGemIconData — SuperGemType + Icon + Tint
 
-BoardConfig                   — CellSize, CellSpacing
-AnimationConfig               — SwapDuration, FallDuration, etc.
+BoardConfig                   — CellSize, CellSpacing, Padding
+AnimationConfig               — SwapDuration, FallDuration, MatchDestroyDuration...
 ```
-
-**Логика ячейки:**
-- `Hidden`              → пустая, фишек нет
-- `Normal` + `None`     → случайная фишка
-- `Normal` + `Red` etc. → конкретная фишка
 
 ---
 
@@ -58,21 +77,16 @@ AnimationConfig               — SwapDuration, FallDuration, etc.
 
 ### ProjectContext
 ```
-ProjectConfigInstaller
-  → GemConfig, BoardConfig, AnimationConfig, LevelConfigRepository (BindInstance)
-
-ProjectServiceInstaller
-  → ISceneManagerService → SceneManagerService
-  → Bootstrapper (IInitializable)
+ProjectConfigInstaller  → GemConfig, BoardConfig, AnimationConfig, LevelConfigRepository
+ProjectServiceInstaller → ISceneManagerService, Bootstrapper
 ```
 
 ### SceneContext (Game)
 ```
-SceneServiceInstaller    → 4 сервиса + GameLoopController
-SceneViewInstaller       → Views + BoardInputHandler (FromComponentInHierarchy)
-ScenePresenterInstaller  → Presenters (BindInterfacesAndSelfTo, NonLazy)
+SceneServiceInstaller   → 4 сервиса + GameLoopController
+SceneViewInstaller      → Views + BoardInputHandler
+ScenePresenterInstaller → Presenters (NonLazy)
 ```
-> ⚠️ Порядок биндинга: Service → View → Presenter
 
 ---
 
@@ -80,61 +94,59 @@ ScenePresenterInstaller  → Presenters (BindInterfacesAndSelfTo, NonLazy)
 
 | Сервис | Ответственность |
 |--------|----------------|
-| **BoardService** | Состояние сетки + поиск матчей + гравитация + спавн |
-| **SwapService** | Выбор фишек (два клика) + валидация свопа + событие OnSwapRequested |
-| **LayerService** | Состояние слоёв под фишками |
-| **LevelService** | Старт уровня + цели (objective) + счётчик ходов + победа/поражение |
+| **BoardService** | Состояние сетки + матчи + гравитация + спавн |
+| **SwapService** | Выбор фишек (два клика) + OnSwapRequested |
+| **LayerService** | Слои под фишками |
+| **LevelService** | Старт + цели + ходы + победа/поражение |
 
-### BoardService — публичный API
-
+### BoardService API
 ```
-Initialize(config)
-GenerateInitialGems(allowedTypes)  — начальная расстановка без матчей
-FindAndCreateMatches(seedCells)    — поиск матчей
-HasMatchAfterSwap(a, b)            — проверка свопа
-ComputeAndApplyFalls()             — гравитация
-GetSpawnList()                     — список пустых ячеек для спавна
-FindAllPossibleSwaps()             — подсказки
+Initialize / GenerateInitialGems / FindAndCreateMatches
+HasMatchAfterSwap / ComputeAndApplyFalls / GetSpawnList
 PlaceGem / RemoveGem / ExchangeGems / LockCell
+IsNormalCell / IsNormalCell / AreNeighbors / GetGem
+Rows / Columns
 ```
 
-### SwapService — логика выбора (два клика)
-
+### SwapService
 ```
-TrySelect(pos):
-  1й клик  → запоминаем _firstCell, логируем
-  2й клик  → если тот же → сброс
-           → если не сосед → переназначаем _firstCell
-           → если сосед → LockCell + OnSwapRequested.OnNext((first, pos))
-
-OnSwapRequested : Observable<(from, to)>
-Lock() / Unlock()                  — блокировка во время анимации
-FindAllPossibleSwaps()             → делегирует BoardService
+TrySelect(pos) → 1й клик: _firstCell / 2й клик: OnSwapRequested или переназначение
+Lock() / Unlock()
 ```
 
-### LevelService — объединяет Level + Objective + MoveCounter
-
+### LevelService
 ```
-StartLevel(config)           — инициализирует BoardService, LayerService, цели, ходы
-RegisterMatch(match)         — учёт целей
-UseMove()                    — счётчик ходов
-ProcessTurnResult()          — проверка победы/поражения
-
-// Reactive
-State : ReactiveProperty<LevelState>
-Progress : ReactiveProperty<ObjectiveProgress[]>
-MovesLeft / MovesUsed : ReactiveProperty<int>
-OnLevelWon / OnLevelLost / OnMovesExhausted / OnObjectiveCompleted
+StartLevel(config) → BoardService.Initialize + LayerService.Initialize + цели + ходы
+RegisterMatch(match) / UseMove() / ProcessTurnResult()
+State / Progress / MovesLeft / OnLevelWon / OnLevelLost
 ```
 
 ---
 
-## 🎮 Controllers
+## 🎮 GameLoopController — поток одного хода
 
-| Контроллер | Ответственность |
-|------------|----------------|
-| Bootstrapper | Точка входа, переключение сцены |
-| GameLoopController | Оркестратор: input → swap → match → gravity → spawn → cascade |
+```
+OnCellClicked(pos)
+  → SwapService.TrySelect(pos)
+      └── OnSwapRequested → HandleSwapAsync(from, to)
+            ├── ExchangeGems + AnimateSwapAsync
+            ├── FindAndCreateMatches([from, to])
+            ├── нет матча → ExchangeGems back + AnimateReturnSwapAsync
+            └── есть матч → ResolveAsync(matches)
+
+ResolveAsync(matches):
+  while matches.Count > 0:
+    1. match.ComputeSuperGem()          — определяем форму
+    2. RegisterMatch / ProcessMatches   — сервисы
+    3. CollectExplosionCells(matches)   — взрывы супер-фишек
+    4. AnimateDestroyMatchAsync × N     — уничтожение
+       + AnimateDestroyCellsAsync       — взрывы параллельно
+    5. SpawnSuperGems(matches)          — спавн супер-фишек
+    6. ComputeAndApplyFalls             — гравитация
+    7. AnimateFallsAsync
+    8. GetSpawnList + AnimateSpawnAsync — новые фишки
+    9. FindAndCreateMatches(allCells)   — каскад → повтор
+```
 
 ---
 
@@ -142,13 +154,12 @@ OnLevelWon / OnLevelLost / OnMovesExhausted / OnObjectiveCompleted
 
 | View | Ответственность |
 |------|----------------|
-| BoardView | Сетка, позиции ячеек, инстанцирование GemView |
+| BoardView | Сетка, слоты, InstantiateGem, ReparentToOverlay/Container, DragLayer |
 | BoardInputHandler | IPointerClickHandler → OnCellClicked(Vector2Int) |
-| GemView | Фишка + анимации DOTween |
-| LayerView | Отображение слоёв под полем |
-| ObjectiveView | UI целей уровня |
-| MoveCounterView | UI счётчика ходов |
-| LevelResultView | UI победы / поражения |
+| GemView | Image (цвет) + Image _superIcon (иконка типа) + анимации DOTween |
+| LayerView / ObjectiveView / MoveCounterView / LevelResultView | UI |
+
+**GemView.SetSuperIcon(iconData)** — устанавливает оверлей иконки на фишку.
 
 ---
 
@@ -156,7 +167,7 @@ OnLevelWon / OnLevelLost / OnMovesExhausted / OnObjectiveCompleted
 
 | Presenter | Связывает |
 |-----------|----------|
-| BoardPresenter | BoardService ↔ BoardView (создание, анимации) |
+| BoardPresenter | BoardService ↔ BoardView. CreateGemAt / CreateSuperGemAt / Animate* |
 | SwapPresenter | SwapService ↔ визуальный фидбек |
 | LayerPresenter | LayerService ↔ LayerView |
 | ObjectivePresenter | LevelService.Progress ↔ ObjectiveView |
@@ -167,93 +178,34 @@ OnLevelWon / OnLevelLost / OnMovesExhausted / OnObjectiveCompleted
 ## 📁 Структура папок
 
 ```
-Assets/Match3/
+Assets/Match3/Scripts/
+├── Core/
+│   ├── Enums/        NodeType, SuperGemType, CellType, SceneId, LevelState
+│   ├── Models/       BoardCell, CellData, ObjectiveData
+│   ├── GemMatch.cs   + ComputeSuperGem()
+│   ├── GemState.cs
+│   └── IGemView.cs   + SuperGemType, SetSuperGemType()
 ├── Configs/
-│   ├── Levels/
-│   ├── LevelConfigRepository.asset
-│   ├── GemConfig.asset
-│   ├── BoardConfig.asset
-│   └── AnimationConfig.asset
-├── Scripts/
-│   ├── Core/
-│   │   ├── Enums/
-│   │   └── Models/
-│   ├── Configs/
-│   ├── Controllers/               — Bootstrapper, GameLoopController
-│   ├── Services/
-│   │   ├── SceneManagement/       — ISceneManagerService, SceneManagerService
-│   │   ├── Board/                 — BoardService  ✅ активный
-│   │   ├── Swap/                  — SwapService   ✅ активный
-│   │   ├── Layer/                 — LayerService  ✅ активный
-│   │   ├── Level/                 — LevelService  ✅ активный (+ ObjectiveProgress)
-│   │   ├── Match/                 — MatchService  ❌ удалить
-│   │   ├── Gravity/               — GravityService ❌ удалить
-│   │   ├── Spawn/                 — SpawnService  ❌ удалить
-│   │   ├── Objective/             — ObjectiveService ❌ удалить
-│   │   ├── MoveCounter/           — MoveCounterService ❌ удалить
-│   │   └── Factories/             — GemFactory ❌ удалить (не используется)
-│   ├── Views/
-│   ├── Presenters/
-│   └── Installers/
-│       ├── ProjectConfigInstaller.cs
-│       ├── ProjectServiceInstaller.cs
-│       ├── SceneServiceInstaller.cs
-│       ├── SceneViewInstaller.cs
-│       └── ScenePresenterInstaller.cs
-├── Prefabs/
-│   ├── Gems/
-│   └── UI/
-└── Scenes/
-    ├── Bootstrap
-    └── Game
+│   GemConfig (+ SuperGemIcons[]), BoardConfig, AnimationConfig, LevelConfig*
+├── Controllers/
+│   Bootstrapper, GameLoopController (+ взрывы + спавн супер-фишек)
+├── Services/
+│   Board / Swap / Layer / Level   ✅ 4 активных
+│   Match / Gravity / Spawn / Objective / MoveCounter / Factories ❌ удалить
+├── Views/
+│   GemView (+ _superIcon Image, SetSuperIcon, PlaySuperSpawn)
+│   BoardView (+ _dragLayer, ReparentToOverlay/Container)
+│   BoardInputHandler, LayerView, ObjectiveView, MoveCounterView, LevelResultView
+├── Presenters/
+│   BoardPresenter (+ CreateSuperGemAt, AnimateDestroyCellsAsync)
+│   SwapPresenter, LayerPresenter, ObjectivePresenter, LevelPresenter
+└── Installers/
+    Project*Installer, Scene*Installer
 ```
 
 ---
 
-## 🔄 Поток запуска
-
-```
-Bootstrap сцена
-  → ProjectContext
-    → Bootstrapper.Initialize()
-      → SceneManagerService.LoadSceneAsync(Game)
-        → Game сцена
-          → SceneContext
-            → GameLoopController.Initialize()
-              → LevelService.StartLevel(config)
-                  → BoardService.Initialize()
-                  → LayerService.Initialize()
-                  → InitializeObjectives()
-                  → InitializeMoveCounter()
-              → BoardPresenter.InitializeLayout()
-              → BoardService.GenerateInitialGems()
-              → BoardPresenter.CreateGems()
-              → LayerPresenter.RenderLayers()
-              → подписка: BoardInputHandler.OnCellClicked → SwapService.TrySelect
-              → подписка: SwapService.OnSwapRequested → HandleSwapAsync
-```
-
-## 🔄 Поток игрового цикла (клик-выбор)
-
-```
-BoardInputHandler.OnPointerClick(pos)
-  → OnCellClicked(pos)
-    → GameLoopController.OnCellClicked(pos)
-      → SwapService.TrySelect(pos)
-          ├── 1й клик → _firstCell = pos  (лог: "Первая фишка выбрана")
-          ├── 2й клик, не сосед → _firstCell = pos  (лог: "Переназначаем первую")
-          ├── 2й клик, тот же → _firstCell = null  (лог: "Отменяем выбор")
-          └── 2й клик, сосед → OnSwapRequested.OnNext((first, pos))
-                → GameLoopController.HandleSwapAsync(from, to)
-                    ├── нет матча → AnimateReturnSwap → разблокировать
-                    └── есть матч → ResolveAsync()
-                          ├── LevelService.RegisterMatch()
-                          ├── LayerService.ProcessMatches()
-                          ├── BoardPresenter.AnimateDestroyMatchAsync()
-                          ├── BoardService.ComputeAndApplyFalls()
-                          ├── BoardPresenter.AnimateFallsAsync()
-                          ├── BoardService.GetSpawnList()
-                          ├── BoardPresenter.AnimateSpawnAsync()
-                          ├── [cascade] BoardService.FindAndCreateMatches() → повтор
-                          └── LevelService.ProcessTurnResult() → Won / Lost
-```
+## 🔮 Второй этап (не реализован)
+- Комбо-свопы двух супер-фишек
+- Визуальные эффекты взрывов (частицы)
+- Подсветка выбранной фишки (SwapPresenter)

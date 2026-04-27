@@ -10,13 +10,7 @@ namespace Match3.Views
     {
         [SerializeField] private RectTransform _gemContainer  = null!;
         [SerializeField] private RectTransform _cellContainer = null!;
-
-        /// <summary>
-        /// Оверлей для гемов во время анимации.
-        /// Должен лежать выше GemContainer в иерархии Canvas,
-        /// чтобы летящий гем рисовался поверх всех остальных.
-        /// </summary>
-        [SerializeField] private RectTransform _dragLayer = null!;
+        [SerializeField] private RectTransform _dragLayer     = null!;
 
         private BoardConfig _boardConfig   = null!;
         private GameObject  _gemViewPrefab = null!;
@@ -30,7 +24,7 @@ namespace Match3.Views
         public RectTransform GemContainer  => _gemContainer;
 
         public float CellSize    => _cellSize;
-        public float CellSpacing => _boardConfig != null ? _boardConfig.CellSpacing : 0f;
+        public float CellSpacing => _boardConfig.CellSpacing;
         public int   Rows        => _rows;
         public int   Columns     => _cols;
 
@@ -47,23 +41,46 @@ namespace Match3.Views
             _rows = rows;
             _cols = cols;
 
-            var boardWidth  = RectTransform.rect.width;
-            var usableWidth = boardWidth - _boardConfig.BoardPadding * 2f;
-            _cellSize = (usableWidth - _boardConfig.CellSpacing * (cols - 1)) / cols;
+            var boardRect   = RectTransform.rect;
+            var boardWidth  = boardRect.width;
+            var boardHeight = boardRect.height;
+            var padding     = _boardConfig.BoardPadding;
+            var spacing     = _boardConfig.CellSpacing;
 
-            var totalWidth  = cols * _cellSize + _boardConfig.CellSpacing * (cols - 1);
-            var totalHeight = rows * _cellSize + _boardConfig.CellSpacing * (rows - 1);
+            // cellSize — максимально возможный, чтобы сетка влезла по обеим осям
+            var cellByW = (boardWidth  - padding * 2f - spacing * (cols - 1)) / cols;
+            var cellByH = (boardHeight - padding * 2f - spacing * (rows - 1)) / rows;
+            _cellSize = Mathf.Max(Mathf.Min(cellByW, cellByH), 1f);
 
-            _gemContainer.sizeDelta        = new Vector2(totalWidth, totalHeight);
-            _gemContainer.anchoredPosition = new Vector2(_boardConfig.BoardPadding, 0f);
+            var totalWidth  = cols * _cellSize + spacing * (cols - 1);
+            var totalHeight = rows * _cellSize + spacing * (rows - 1);
 
-            if (_cellContainer != null)
-            {
-                _cellContainer.sizeDelta        = new Vector2(totalWidth, totalHeight);
-                _cellContainer.anchoredPosition = new Vector2(_boardConfig.BoardPadding, 0f);
-            }
+            // Центрируем сетку внутри доски
+            var offsetX      = (boardWidth  - totalWidth)  * 0.5f;
+            var offsetY      = (boardHeight - totalHeight) * 0.5f;
+            var containerPos = new Vector2(offsetX, -offsetY);
+
+            ApplyContainer(_gemContainer,  totalWidth, totalHeight, containerPos);
+            ApplyContainer(_cellContainer, totalWidth, totalHeight, containerPos);
 
             _layoutReady = true;
+
+            Debug.LogWarning(
+                $"[BoardView] board={boardWidth:F0}×{boardHeight:F0} " +
+                $"cellSize={_cellSize:F1} spacing={spacing} gemPad={_boardConfig.GemPadding} " +
+                $"total={totalWidth:F0}×{totalHeight:F0}");
+        }
+
+        private static void ApplyContainer(
+            RectTransform rt,
+            float totalWidth, float totalHeight, Vector2 pos)
+        {
+            if (rt == null) return;
+            rt.anchorMin        = new Vector2(0f, 1f);
+            rt.anchorMax        = new Vector2(0f, 1f);
+            rt.pivot            = new Vector2(0f, 1f);
+            rt.sizeDelta        = new Vector2(totalWidth, totalHeight);
+            rt.anchoredPosition = pos;
         }
 
         // ── Gem factory ───────────────────────────────────────────────────────
@@ -75,9 +92,7 @@ namespace Match3.Views
 
             var view = Instantiate(_gemViewPrefab, _gemContainer).GetComponent<GemView>();
             view.gameObject.name = $"Gem_{row}_{col}";
-
             ApplySlotTransform(view.RectTransform, new Vector2Int(row, col));
-
             return view;
         }
 
@@ -96,46 +111,29 @@ namespace Match3.Views
 
             var step = _cellSize + _boardConfig.CellSpacing;
             return new Vector2(
-                col  * step + _boardConfig.GemPadding,
-                -row * step - _boardConfig.GemPadding
+                col * step + _boardConfig.GemPadding,
+               -row * step - _boardConfig.GemPadding
             );
         }
 
         public Vector2 GetAnchoredPosition(Vector2Int cell) =>
             GetAnchoredPosition(cell.x, cell.y);
 
-        /// <summary>
-        /// Мировая позиция пивота (top-left) слота ячейки.
-        /// Используется для DOMove во время анимации из DragLayer.
-        /// </summary>
         public Vector3 GetSlotWorldPosition(Vector2Int cell)
         {
-            var ap   = GetAnchoredPosition(cell);
-            var rect = _gemContainer.rect;
-
-            // anchoredPosition задаёт смещение пивота гема от точки привязки (0,1).
-            // Точка привязки (0,1) в local-space контейнера = (rect.xMin, rect.yMax).
+            var ap       = GetAnchoredPosition(cell);
+            var rect     = _gemContainer.rect;
             var localPos = new Vector3(rect.xMin + ap.x, rect.yMax + ap.y, 0f);
             return _gemContainer.TransformPoint(localPos);
         }
 
         // ── Управление родителем ──────────────────────────────────────────────
 
-        /// <summary>
-        /// Перемещает гем в DragLayer, сохраняя визуальную позицию.
-        /// Вызывать ДО начала анимации.
-        /// </summary>
         public void ReparentToOverlay(GemView gem)
         {
             gem.RectTransform.SetParent(_dragLayer, worldPositionStays: true);
         }
 
-        /// <summary>
-        /// Возвращает гем в GemContainer и восстанавливает параметры слота.
-        /// worldPositionStays: true — Unity пересчитывает anchoredPosition под новый контейнер,
-        /// затем ApplySlotTransform выставляет точные значения слота без визуального скачка.
-        /// Вызывать ПОСЛЕ завершения анимации (в onComplete).
-        /// </summary>
         public void ReparentToContainer(GemView gem, Vector2Int slot)
         {
             gem.RectTransform.SetParent(_gemContainer, worldPositionStays: true);

@@ -6,6 +6,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Match3.Configs;
 using Match3.Core;
+using Match3.Core.Enums;
 using Match3.Presenters;
 using Match3.Services.Board;
 using Match3.Services.Layer;
@@ -75,7 +76,6 @@ namespace Match3.Controllers
                 .AddTo(_disposables);
 
             _inputHandler.SetInputEnabled(true);
-
             Debug.LogWarning("[GameLoop] Инициализирован. Доска готова.");
         }
 
@@ -106,11 +106,9 @@ namespace Match3.Controllers
                     return;
                 }
 
-                // Меняем данные и запускаем анимацию свопа
                 _boardService.ExchangeGems(from, to);
                 await _boardPresenter.AnimateSwapAsync(from, to, gemFrom, gemTo, ct);
 
-                // ✅ Разблокируем ДО проверки матча — иначе CanMatch() = false
                 _boardService.LockCell(from, false);
                 _boardService.LockCell(to,   false);
 
@@ -119,18 +117,14 @@ namespace Match3.Controllers
 
                 if (matches.Count == 0)
                 {
-                    // Нет матча — возвращаем данные и анимируем обратно
                     var returnFrom = _boardService.GetGem(from)!;
                     var returnTo   = _boardService.GetGem(to)!;
-
                     _boardService.ExchangeGems(from, to);
                     await _boardPresenter.AnimateReturnSwapAsync(from, to, returnFrom, returnTo, ct);
-
                     Debug.LogWarning("[GameLoop] Матча нет — своп отменён");
                     return;
                 }
 
-                // Есть матч — засчитываем ход и запускаем resolve
                 _levelService.UseMove();
                 await ResolveAsync(matches, ct);
                 _levelService.ProcessTurnResult();
@@ -154,16 +148,39 @@ namespace Match3.Controllers
         {
             while (matches.Count > 0)
             {
-                Debug.LogWarning($"[GameLoop] ResolveAsync — уничтожаем {matches.Count} матч(ей)");
+                Debug.LogWarning($"[GameLoop] ResolveAsync — {matches.Count} матч(ей)");
 
+                // 1. Вычисляем форму каждого матча → определяем супер-фишки
+                foreach (var match in matches)
+                    match.ComputeSuperGem();
+
+                // 2. Регистрируем в сервисах
                 foreach (var match in matches)
                 {
                     _levelService.RegisterMatch(match);
                     _layerService.ProcessMatches(match.MatchingCells);
                 }
 
-                await DestroyMatchesAsync(matches, ct);
+                // 3. Собираем взрывы от супер-фишек внутри матчей
+                var explosionCells = CollectExplosionCells(matches);
 
+                // 4. Уничтожаем матчи + взрывы параллельно
+                var destroyTasks = new List<UniTask>(matches.Count + 1);
+                foreach (var match in matches)
+                    destroyTasks.Add(_boardPresenter.AnimateDestroyMatchAsync(match, ct));
+
+                if (explosionCells.Count > 0)
+                {
+                    Debug.LogWarning($"[GameLoop] Взрывы супер-фишек: {explosionCells.Count} клеток");
+                    destroyTasks.Add(_boardPresenter.AnimateDestroyCellsAsync(explosionCells, ct));
+                }
+
+                await UniTask.WhenAll(destroyTasks).AttachExternalCancellation(ct);
+
+                // 5. Спавним супер-фишки на позиции матчей (до гравитации)
+                SpawnSuperGems(matches);
+
+                // 6. Гравитация + спавн обычных
                 var fallMoves = _boardService.ComputeAndApplyFalls();
                 Debug.LogWarning($"[GameLoop] Падений: {fallMoves.Count}");
 
@@ -176,21 +193,136 @@ namespace Match3.Controllers
                 if (spawnList.Count > 0)
                     await _boardPresenter.AnimateSpawnAsync(spawnList, ct);
 
-                // Каскад — проверяем всю доску
+                // 7. Каскад
                 var allCells = CollectAllNormalCells();
                 matches = _boardService.FindAndCreateMatches(allCells);
                 Debug.LogWarning($"[GameLoop] Каскадных матчей: {matches.Count}");
             }
         }
 
-        private async UniTask DestroyMatchesAsync(List<GemMatch> matches, CancellationToken ct)
-        {
-            var tasks = new List<UniTask>(matches.Count);
-            foreach (var match in matches)
-                tasks.Add(_boardPresenter.AnimateDestroyMatchAsync(match, ct));
+        // ── Super gem helpers ────────────────────────────────────────────────
 
-            await UniTask.WhenAll(tasks).AttachExternalCancellation(ct);
+        /// <summary>
+        /// Собирает клетки взрывов от супер-фишек, которые попали в матчи.
+        /// Исключает клетки уже входящие в матч (они и так уничтожатся).
+        /// </summary>
+        private List<Vector2Int> CollectExplosionCells(List<GemMatch> matches)
+        {
+            var alreadyInMatch = new HashSet<Vector2Int>();
+            foreach (var match in matches)
+                foreach (var cell in match.MatchingCells)
+                    alreadyInMatch.Add(cell);
+
+            var result = new HashSet<Vector2Int>();
+
+            foreach (var match in matches)
+            {
+                foreach (var gem in match.MatchedGems)
+                {
+                    if (gem.SuperGemType == SuperGemType.None) continue;
+                    var cells = GetExplosionCells(gem.CurrentIndex, gem.SuperGemType, gem.GemType);
+                    foreach (var cell in cells)
+                        if (!alreadyInMatch.Contains(cell))
+                            result.Add(cell);
+                }
+            }
+
+            return new List<Vector2Int>(result);
         }
+
+        /// <summary>
+        /// Возвращает список клеток которые должна уничтожить супер-фишка.
+        /// </summary>
+        private List<Vector2Int> GetExplosionCells(
+            Vector2Int   pos,
+            SuperGemType superGemType,
+            NodeType     nodeType)
+        {
+            var cells = new List<Vector2Int>();
+
+            switch (superGemType)
+            {
+                case SuperGemType.HorizontalArrow:
+                    for (var col = 0; col < _boardService.Columns; col++)
+                    {
+                        var cell = new Vector2Int(pos.x, col);
+                        if (_boardService.IsNormalCell(cell) && _boardService.GetGem(cell) != null)
+                            cells.Add(cell);
+                    }
+                    Debug.LogWarning($"[GameLoop] HorizontalArrow взрыв: строка {pos.x}, {cells.Count} клеток");
+                    break;
+
+                case SuperGemType.VerticalArrow:
+                    for (var row = 0; row < _boardService.Rows; row++)
+                    {
+                        var cell = new Vector2Int(row, pos.y);
+                        if (_boardService.IsNormalCell(cell) && _boardService.GetGem(cell) != null)
+                            cells.Add(cell);
+                    }
+                    Debug.LogWarning($"[GameLoop] VerticalArrow взрыв: колонка {pos.y}, {cells.Count} клеток");
+                    break;
+
+                case SuperGemType.ColorBomb:
+                    for (var row = 0; row < _boardService.Rows; row++)
+                    for (var col = 0; col < _boardService.Columns; col++)
+                    {
+                        var cell = new Vector2Int(row, col);
+                        var gem  = _boardService.GetGem(cell);
+                        if (gem != null && gem.GemType == nodeType)
+                            cells.Add(cell);
+                    }
+                    Debug.LogWarning($"[GameLoop] ColorBomb взрыв: цвет {nodeType}, {cells.Count} клеток");
+                    break;
+
+                case SuperGemType.Bomb:
+                    AddSquareCells(pos, radius: 1, cells);
+                    Debug.LogWarning($"[GameLoop] Bomb взрыв: 3×3 вокруг {pos}, {cells.Count} клеток");
+                    break;
+
+                case SuperGemType.MegaBomb:
+                    AddSquareCells(pos, radius: 2, cells);
+                    Debug.LogWarning($"[GameLoop] MegaBomb взрыв: 5×5 вокруг {pos}, {cells.Count} клеток");
+                    break;
+            }
+
+            return cells;
+        }
+
+        private void AddSquareCells(Vector2Int center, int radius, List<Vector2Int> cells)
+        {
+            for (var dr = -radius; dr <= radius; dr++)
+            for (var dc = -radius; dc <= radius; dc++)
+            {
+                var cell = new Vector2Int(center.x + dr, center.y + dc);
+                if (_boardService.IsNormalCell(cell) && _boardService.GetGem(cell) != null)
+                    cells.Add(cell);
+            }
+        }
+
+        /// <summary>
+        /// Спавнит супер-фишки для всех матчей у которых есть HasSuperGemSpawn.
+        /// Позиция должна быть пустой (гем уже уничтожен).
+        /// </summary>
+        private void SpawnSuperGems(List<GemMatch> matches)
+        {
+            foreach (var match in matches)
+            {
+                if (!match.HasSuperGemSpawn) continue;
+
+                var pos = match.SuperGemSpawnPos;
+
+                // Позиция должна быть пустой — если туда уже что-то упало, пропускаем
+                if (!_boardService.IsNormalCell(pos) || _boardService.GetGem(pos) != null)
+                {
+                    Debug.LogWarning($"[GameLoop] Супер-фишка: позиция {pos} занята — пропускаем");
+                    continue;
+                }
+
+                _boardPresenter.CreateSuperGemAt(pos, match.MatchNodeType, match.SuperGemToSpawn);
+            }
+        }
+
+        // ── Utils ─────────────────────────────────────────────────────────────
 
         private List<Vector2Int> CollectAllNormalCells()
         {

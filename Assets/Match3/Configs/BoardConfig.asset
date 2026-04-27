@@ -12,7 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e8a525e0f2cde142b0f1b4df63111fb, type: 3}
   m_Name: BoardConfig
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.BoardConfig
-  <CellSize>k__BackingField: 64
-  <BoardPadding>k__BackingField: 8
-  <CellSpacing>k__BackingField: 4
-  <GemPadding>k__BackingField: 4
+  <BoardPadding>k__BackingField: 2
+  <CellSpacing>k__BackingField: 0
+  <GemPadding>k__BackingField: 0

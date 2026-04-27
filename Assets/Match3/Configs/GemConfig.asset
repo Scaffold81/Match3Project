@@ -42,3 +42,19 @@ MonoBehaviour:
     <Sprite>k__BackingField: {fileID: 0}
     <Color>k__BackingField: {r: 1, g: 0.5803922, b: 0, a: 1}
     <Prefab>k__BackingField: {fileID: 2809490234240027630, guid: 32c49e2eb3b42ad4ab70ed36f2e280eb, type: 3}
+  <SuperGemIcons>k__BackingField:
+  - <SuperGemType>k__BackingField: 1
+    <Icon>k__BackingField: {fileID: 0}
+    <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
+  - <SuperGemType>k__BackingField: 2
+    <Icon>k__BackingField: {fileID: 0}
+    <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
+  - <SuperGemType>k__BackingField: 3
+    <Icon>k__BackingField: {fileID: 0}
+    <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
+  - <SuperGemType>k__BackingField: 4
+    <Icon>k__BackingField: {fileID: 0}
+    <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
+  - <SuperGemType>k__BackingField: 5
+    <Icon>k__BackingField: {fileID: 0}
+    <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
