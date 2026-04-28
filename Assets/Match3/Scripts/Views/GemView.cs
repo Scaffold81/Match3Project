@@ -16,7 +16,9 @@ namespace Match3.Views
         [SerializeField] private Image _superIcon = null!;
 
         private RectTransform _rectTransform = null!;
-        private Tween?        _currentTween; // Tween — базовый класс для Tweener и Sequence
+        private GemConfig?    _gemConfig;
+        private Tween?        _currentTween;
+        private Tween?        _hintTween;
 
         // ── IGemView ──────────────────────────────────────────────────────────
         public NodeType     GemType      { get; private set; } = NodeType.None;
@@ -26,6 +28,8 @@ namespace Match3.Views
         public GemState     CurrentState { get; private set; } = GemState.Still;
         public bool         CanMove      => CurrentState == GemState.Still;
 
+        public void SetConfig(GemConfig gemConfig) => _gemConfig = gemConfig;
+
         public void Init(Vector2Int index, NodeType type)
         {
             CurrentIndex = index;
@@ -33,6 +37,7 @@ namespace Match3.Views
             SuperGemType = SuperGemType.None;
             CurrentState = GemState.Still;
             CurrentMatch = null;
+            StopHint();
             HideSuperIcon();
         }
 
@@ -43,6 +48,22 @@ namespace Match3.Views
 
         public void SetSuperGemType(SuperGemType superGemType) =>
             SuperGemType = superGemType;
+
+        /// <summary>
+        /// Меняет тип и визуал фишки без пересоздания GameObject — используется при shuffle.
+        /// Восстанавливает _image.enabled и CurrentState после PlayDestroy/SetEmpty.
+        /// </summary>
+        public void SetGemType(NodeType type)
+        {
+            GemType      = type;
+            CurrentState = GemState.Still; // сбрасываем Disappearing после PlayDestroy
+            if (_gemConfig == null) return;
+            var visual = _gemConfig.GetVisual(type);
+            if (visual == null) return;
+            _image.sprite  = visual.Sprite;
+            _image.color   = visual.Color;
+            _image.enabled = true;         // восстанавливаем после SetEmpty()
+        }
 
         // ── Visual ────────────────────────────────────────────────────────────
         public bool          IsEmpty       => GemType == NodeType.None;
@@ -84,6 +105,7 @@ namespace Match3.Views
             SuperGemType   = SuperGemType.None;
             _image.sprite  = null;
             _image.enabled = false;
+            StopHint();
             HideSuperIcon();
         }
 
@@ -132,9 +154,26 @@ namespace Match3.Views
                 .SetLink(gameObject);
         }
 
+        /// <summary>
+        /// Анимация сжатия для shuffle — не вызывает SetEmpty/DestroyGem,
+        /// только масштабирует до нуля. Восстановление через SetGemType + PlaySpawn.
+        /// </summary>
+        public void PlayFold(float duration, Action? onComplete = null)
+        {
+            _currentTween?.Kill();
+            StopHint();
+            _rectTransform.localScale = Vector3.one;
+            _currentTween = _rectTransform
+                .DOScale(Vector3.zero, duration)
+                .SetEase(Ease.InBack)
+                .SetLink(gameObject)
+                .OnComplete(() => onComplete?.Invoke());
+        }
+
         public void PlayDestroy(float duration, Action? onComplete = null)
         {
             _currentTween?.Kill();
+            StopHint();
             MarkDestroyed();
             _rectTransform.localScale = Vector3.one;
             _currentTween = _rectTransform
@@ -159,12 +198,33 @@ namespace Match3.Views
                 .SetLink(gameObject);
         }
 
+        public void PlayHint()
+        {
+            StopHint();
+            _hintTween = _rectTransform
+                .DOScale(1.15f, 0.45f)
+                .SetEase(Ease.InOutSine)
+                .SetLoops(-1, LoopType.Yoyo)
+                .SetLink(gameObject);
+        }
+
+        public void StopHint()
+        {
+            _hintTween?.Kill();
+            _hintTween = null;
+            _rectTransform.localScale = Vector3.one;
+        }
+
         public void ResetScale()
         {
             _currentTween?.Kill();
             _rectTransform.localScale = Vector3.one;
         }
 
-        private void OnDestroy() => _currentTween?.Kill();
+        private void OnDestroy()
+        {
+            _currentTween?.Kill();
+            _hintTween?.Kill();
+        }
     }
 }

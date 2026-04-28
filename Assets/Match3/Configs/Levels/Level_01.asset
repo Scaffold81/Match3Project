@@ -22,8 +22,36 @@ MonoBehaviour:
   <Grid>k__BackingField:
   - <Cells>k__BackingField:
     - cellType: 0
+      nodeType: 1
+      hasLayer: 0
+    - cellType: 0
       nodeType: 0
       hasLayer: 0
+    - cellType: 0
+      nodeType: 1
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 1
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 1
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 1
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 1
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 1
+      nodeType: 0
+      hasLayer: 0
+  - <Cells>k__BackingField:
     - cellType: 0
       nodeType: 0
       hasLayer: 0
@@ -40,15 +68,18 @@ MonoBehaviour:
       nodeType: 0
       hasLayer: 0
     - cellType: 0
-      nodeType: 0
+      nodeType: 2
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 2
       hasLayer: 0
     - cellType: 0
       nodeType: 0
       hasLayer: 0
-    - cellType: 0
+    - cellType: 1
       nodeType: 0
       hasLayer: 0
-    - cellType: 0
+    - cellType: 1
       nodeType: 0
       hasLayer: 0
   - <Cells>k__BackingField:
@@ -80,38 +111,7 @@ MonoBehaviour:
       nodeType: 0
       hasLayer: 0
     - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-  - <Cells>k__BackingField:
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
+      nodeType: 2
       hasLayer: 0
   - <Cells>k__BackingField:
     - cellType: 0
@@ -142,7 +142,7 @@ MonoBehaviour:
       nodeType: 0
       hasLayer: 0
     - cellType: 0
-      nodeType: 0
+      nodeType: 2
       hasLayer: 0
   - <Cells>k__BackingField:
     - cellType: 0
@@ -204,7 +204,7 @@ MonoBehaviour:
       nodeType: 0
       hasLayer: 0
     - cellType: 0
-      nodeType: 0
+      nodeType: 2
       hasLayer: 0
   - <Cells>k__BackingField:
     - cellType: 0
@@ -226,10 +226,41 @@ MonoBehaviour:
       nodeType: 0
       hasLayer: 0
     - cellType: 0
+      nodeType: 4
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 4
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 2
+      hasLayer: 0
+  - <Cells>k__BackingField:
+    - cellType: 0
       nodeType: 0
       hasLayer: 0
     - cellType: 0
       nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 4
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 0
+      hasLayer: 0
+    - cellType: 0
+      nodeType: 4
       hasLayer: 0
     - cellType: 0
       nodeType: 0
@@ -254,41 +285,10 @@ MonoBehaviour:
       nodeType: 0
       hasLayer: 0
     - cellType: 0
-      nodeType: 0
+      nodeType: 4
       hasLayer: 0
     - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-  - <Cells>k__BackingField:
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
+      nodeType: 4
       hasLayer: 0
     - cellType: 0
       nodeType: 0

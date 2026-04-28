@@ -15,6 +15,8 @@ namespace Match3.Installers
             Container.Bind<ObjectiveView>().FromComponentInHierarchy().AsSingle();
             Container.Bind<MoveCounterView>().FromComponentInHierarchy().AsSingle();
             Container.Bind<LevelResultView>().FromComponentInHierarchy().AsSingle();
+            Container.Bind<BackpackView>().FromComponentInHierarchy().AsSingle();
+            Container.Bind<ActiveBoostView>().FromComponentInHierarchy().AsSingle();
         }
     }
 }

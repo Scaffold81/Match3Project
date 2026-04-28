@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.BoardConfig
   <BoardPadding>k__BackingField: 2
   <CellSpacing>k__BackingField: 0
-  <GemPadding>k__BackingField: 0
+  <GemPadding>k__BackingField: -1.34

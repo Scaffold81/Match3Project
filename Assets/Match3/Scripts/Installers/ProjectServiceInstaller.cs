@@ -1,6 +1,7 @@
 #nullable enable
 
 using Match3.Controllers;
+using Match3.Services.Inventory;
 using Match3.Services.SceneManagement;
 using Zenject;
 
@@ -18,6 +19,12 @@ namespace Match3.Installers
 
             Container
                 .BindInterfacesTo<Bootstrapper>()
+                .AsSingle()
+                .NonLazy();
+
+            // InventoryService живёт в ProjectContext — сохраняется между сценами
+            Container
+                .Bind<InventoryService>()
                 .AsSingle()
                 .NonLazy();
         }

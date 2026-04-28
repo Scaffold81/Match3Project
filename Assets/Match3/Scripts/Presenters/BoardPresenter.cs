@@ -58,6 +58,7 @@ namespace Match3.Presenters
                 ?? throw new InvalidOperationException($"No visual for {type}");
 
             var view = _boardView.InstantiateGem(pos.x, pos.y);
+            view.SetConfig(_gemConfig);
             view.Init(pos, type);
             view.SetVisual(type, visual);
 
@@ -65,23 +66,14 @@ namespace Match3.Presenters
             return view;
         }
 
-        /// <summary>
-        /// Создаёт супер-фишку: цвет + иконка типа.
-        /// Анимирует особым спавном (пульс).
-        /// </summary>
         public GemView CreateSuperGemAt(Vector2Int pos, NodeType nodeType, SuperGemType superGemType)
         {
-            var view = CreateGemAt(pos, nodeType);
-
+            var view     = CreateGemAt(pos, nodeType);
             var iconData = _gemConfig.GetSuperGemIcon(superGemType);
-            if (iconData != null)
-                view.SetSuperIcon(iconData);
-            else
-                view.SetSuperGemType(superGemType);
-
+            if (iconData != null) view.SetSuperIcon(iconData);
+            else                  view.SetSuperGemType(superGemType);
             view.PlaySuperSpawn(_animConfig.FallDuration);
-
-            Debug.LogWarning($"[BoardPresenter] Супер-фишка создана: {superGemType} ({nodeType}) в {pos}");
+            Debug.LogWarning($"[BoardPresenter] Супер-фишка: {superGemType} ({nodeType}) в {pos}");
             return view;
         }
 
@@ -118,7 +110,7 @@ namespace Match3.Presenters
             });
 
             await UniTask.WhenAll(tcsA.Task, tcsB.Task).AttachExternalCancellation(ct);
-            Debug.LogWarning($"[BoardPresenter] AnimateSwapAsync завершён: viewFrom→{to}, viewTo→{from}");
+            Debug.LogWarning($"[BoardPresenter] Swap завершён: {from}↔{to}");
         }
 
         public async UniTask AnimateReturnSwapAsync(
@@ -152,7 +144,56 @@ namespace Match3.Presenters
             });
 
             await UniTask.WhenAll(tcsA.Task, tcsB.Task).AttachExternalCancellation(ct);
-            Debug.LogWarning($"[BoardPresenter] AnimateReturnSwapAsync завершён: viewFrom→{to}, viewTo→{from}");
+        }
+
+        // ── Shuffle ───────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Анимация перемешивания:
+        ///   Фаза 1 — PlayFold: все фишки сжимаются (НЕ уничтожаются, НЕ вызывает SetEmpty)
+        ///   Фаза 2 — SetGemType: меняем спрайт/цвет в сжатом состоянии
+        ///   Фаза 3 — PlaySpawn: разворачиваются с новым визуалом
+        ///
+        /// HintService.Shuffle() уже обновил данные в BoardService до вызова этого метода.
+        /// </summary>
+        public async UniTask AnimateShuffleAsync(
+            IEnumerable<(Vector2Int pos, NodeType type)> newLayout,
+            CancellationToken ct)
+        {
+            // Собираем все гемы с их новыми типами
+            var allGems = new List<(GemView view, NodeType newType)>();
+            foreach (var (pos, type) in newLayout)
+            {
+                var gem = _boardService.GetGem(pos) as GemView;
+                if (gem == null) continue;
+                allGems.Add((gem, type));
+            }
+
+            if (allGems.Count == 0) return;
+
+            // Фаза 1 — сжатие через PlayFold (не SetEmpty, не MarkDestroyed)
+            var foldTasks = new List<UniTask>(allGems.Count);
+            foreach (var (view, _) in allGems)
+            {
+                var tcs = new UniTaskCompletionSource();
+                view.PlayFold(_animConfig.ShuffleFoldDuration, () => tcs.TrySetResult());
+                foldTasks.Add(tcs.Task);
+            }
+            await UniTask.WhenAll(foldTasks).AttachExternalCancellation(ct);
+
+            // Фаза 2 — меняем визуал пока фишки сжаты (scale = 0, невидимы)
+            foreach (var (view, newType) in allGems)
+                view.SetGemType(newType);
+
+            // Фаза 3 — разворачиваемся с новым цветом
+            foreach (var (view, _) in allGems)
+                view.PlaySpawn(_animConfig.ShuffleFoldDuration);
+
+            await UniTask.Delay(
+                TimeSpan.FromSeconds(_animConfig.ShuffleFoldDuration),
+                cancellationToken: ct);
+
+            Debug.LogWarning("[BoardPresenter] AnimateShuffleAsync завершён");
         }
 
         // ── Falls ─────────────────────────────────────────────────────────────
@@ -173,9 +214,7 @@ namespace Match3.Presenters
 
                 _boardView.ReparentToOverlay(gem);
                 gem.PlayFallToWorldPos(targetWorldPos, _animConfig.FallDuration, () =>
-                {
-                    _boardView.ReparentToContainer(gem, slot);
-                });
+                    _boardView.ReparentToContainer(gem, slot));
 
                 hasAny = true;
             }
@@ -214,9 +253,6 @@ namespace Match3.Presenters
                 await UniTask.WhenAll(tasks).AttachExternalCancellation(ct);
         }
 
-        /// <summary>
-        /// Уничтожение произвольного набора позиций (взрывы супер-фишек).
-        /// </summary>
         public async UniTask AnimateDestroyCellsAsync(
             IEnumerable<Vector2Int> cells,
             CancellationToken ct)
@@ -225,10 +261,7 @@ namespace Match3.Presenters
 
             foreach (var pos in cells)
             {
-                var gem = _boardService.GetGem(pos);
-                if (gem == null) continue;
-
-                var gemView = gem as GemView;
+                var gemView = _boardService.GetGem(pos) as GemView;
                 if (gemView == null) continue;
 
                 var capturedPos = pos;

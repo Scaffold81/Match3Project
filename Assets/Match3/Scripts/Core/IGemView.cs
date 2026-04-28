@@ -20,5 +20,10 @@ namespace Match3.Core
         void SetStill();
         void MarkDestroyed();
         void SetSuperGemType(SuperGemType superGemType);
+
+        /// <summary>
+        /// Меняет тип фишки без пересоздания объекта — используется при shuffle.
+        /// </summary>
+        void SetGemType(NodeType type);
     }
 }
