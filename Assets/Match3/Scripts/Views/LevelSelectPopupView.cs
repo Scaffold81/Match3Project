@@ -2,6 +2,7 @@
 
 using System;
 using DG.Tweening;
+using Match3.Core.Enums;
 using Match3.Core.Models;
 using R3;
 using TMPro;
@@ -146,17 +147,26 @@ namespace Match3.Views
     [Serializable]
     public sealed class RewardEntryUI
     {
-        [SerializeField] private GameObject _root       = null!;
-        [SerializeField] private Image      _icon       = null!;
-        [SerializeField] private TMP_Text   _amountText = null!;
+        [SerializeField] private GameObject _root      = null!;
+        [SerializeField] private Image      _icon      = null!;
+        [SerializeField] private TMP_Text   _nameText  = null!;
+        [SerializeField] private TMP_Text   _countText = null!;
 
         public GameObject gameObject => _root;
 
         public void Setup(RewardData reward, Sprite? icon)
         {
-            _icon.sprite     = icon;
-            _icon.enabled    = icon != null;
-            _amountText.text = $"x{reward.Amount}";
+            var hasIcon       = icon != null;
+            _icon.sprite      = icon;
+            _icon.enabled     = hasIcon;
+            _nameText.text    = hasIcon ? string.Empty : GetLabel(reward);
+            _nameText.enabled = !hasIcon;
+            _countText.text   = $"x{reward.Amount}";
         }
+
+        private static string GetLabel(RewardData reward) =>
+            reward.Type == RewardType.Boost
+                ? reward.Boost.ToString()
+                : reward.Type.ToString();
     }
 }

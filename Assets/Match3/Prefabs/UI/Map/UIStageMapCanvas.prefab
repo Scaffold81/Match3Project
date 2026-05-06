@@ -1196,6 +1196,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1975696357174400448, guid: 387e3a91401789d46ae6ec35dbabed83, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -15.153687
+      objectReference: {fileID: 0}
     - target: {fileID: 2044809653945972303, guid: 387e3a91401789d46ae6ec35dbabed83, type: 3}
       propertyPath: m_Name
       value: LevelSelectPopup
