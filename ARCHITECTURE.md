@@ -11,9 +11,18 @@ public enum NodeType     { None, Red, Blue, Green, Yellow, Purple, Orange }
 public enum SuperGemType { None, HorizontalArrow, VerticalArrow, ColorBomb, Bomb, MegaBomb }
 public enum BoostType    { None, HorizontalArrow, VerticalArrow, ColorBomb, Bomb, MegaBomb, Hint, Shuffle }
 public enum CellType     { Normal, Hidden }
-public enum LevelState   { Idle, Playing, Won, Lost }
+public enum LevelState   { Idle, Playing, Won, Lost }  // определён внутри LevelService.cs
 public enum SceneId      { Bootstrap, StageMap, Game }
 public enum RewardType   { Boost, Coins, Lives }
+```
+
+### Утилиты
+```csharp
+// Core/BoostTypeExtensions.cs
+static class BoostTypeExtensions
+{
+    public static SuperGemType ToSuperGemType(this BoostType boost)
+}
 ```
 
 ---
@@ -132,7 +141,7 @@ struct RewardData { RewardType Type; BoostType Boost; int Amount; }
 Бонусный этап → ставь более ценные награды (редкие бусты, много монет).
 ```
 
-### RewardService (ProjectContext)
+### RewardService (ProjectContext, IDisposable)
 ```
 GrantAll(RewardData[])    → выдаёт все награды из массива
 OnRewardGranted           : Observable<RewardData>  ← Presenter слушает для анимации
@@ -141,6 +150,8 @@ OnRewardGranted           : Observable<RewardData>  ← Presenter слушает
   Boost → InventoryService.Add(boost, amount)
   Coins → заглушка (TODO: CoinService)
   Lives → заглушка (TODO: LivesService)
+
+Биндинг: BindInterfacesAndSelfTo<RewardService> — Zenject вызывает Dispose() автоматически
 ```
 
 ### Как вызывать
@@ -172,16 +183,26 @@ GetCount(boost) : ReadOnlyReactiveProperty<int>
 HasAny(boost)   : bool
 Add(boost, n)   : void
 TrySpend(boost) : bool
-AddDebugStarterPack() — ⚠️ временно
+AddDebugStarterPack() — ⚠️ временно, удалить после реализации реальных наград
 ```
 
 ### BoostService (SceneContext)
 ```
 SelectBoost / TryApplyBoostAt / CancelBoost
-ActiveBoost     : ReadOnlyReactiveProperty<BoostType>
-OnBoostApplied  : Observable<(BoostType, Vector2Int)>
-OnHintApplied   : Observable<(from, to)>
-OnShuffleApplied: Observable<Unit>
+ActiveBoost      : ReadOnlyReactiveProperty<BoostType>
+OnBoostSelected  : Observable<BoostType>
+OnBoostCancelled : Observable<BoostType>
+OnBoostApplied   : Observable<(BoostType, Vector2Int)>
+OnHintApplied    : Observable<(from, to)>
+OnShuffleApplied : Observable<Unit>
+```
+
+### GemFactory (SceneContext)
+```
+Create(nodeType, parent, name) → GemView
+  — использует GemConfig.GemViewPrefab (базовый префаб)
+  — назначает SetConfig + SetVisual
+  — позиционирование — ответственность BoardView.PositionGem()
 ```
 
 ---
@@ -192,7 +213,7 @@ OnShuffleApplied: Observable<Unit>
 ```
 InventoryService   — бусты (PlayerPrefs)
 ProgressService    — прогресс карты (PlayerPrefs)
-RewardService      — выдача наград за уровни
+RewardService      — выдача наград за уровни (IDisposable)
 ISceneManagerService → SceneManagerService
 Bootstrapper       — стартует с SceneId.StageMap
 ```
@@ -201,7 +222,8 @@ Bootstrapper       — стартует с SceneId.StageMap
 ```
 BoardService, SwapService, LayerService, LevelService
 HintService, BoostService
-GameLoopController (IInitializable)
+GemFactory         — создание GemView
+GameLoopController (IInitializable, IDisposable)
 ```
 
 ---
@@ -222,37 +244,43 @@ WorldMapConfig — Countries[5]
 ```
 Assets/Match3/Scripts/
 ├── Core/
-│   ├── Enums/   NodeType, SuperGemType, BoostType, CellType, LevelState, SceneId, RewardType
-│   ├── Models/  BoardCell, CellData, ObjectiveData, LevelAddress, RewardData
+│   ├── Enums/          NodeType, SuperGemType, BoostType, CellType, SceneId, RewardType
+│   ├── Models/         BoardCell, CellData, ObjectiveData, LevelAddress, RewardData
+│   ├── BoostTypeExtensions.cs  ← extension ToSuperGemType()
 │   └── GemMatch.cs, GemState.cs, IGemView.cs
 ├── Configs/
 │   ├── GemConfig, BoardConfig, AnimationConfig
-│   ├── LevelConfig          ← + Rewards[]
-│   ├── LevelConfigRepository
-│   ├── StageConfig          ← + IsBonusStage, SuperPrize
-│   ├── WorldMapConfig, CountryConfig
+│   ├── LevelConfig, LevelConfigRepository
+│   ├── StageConfig, WorldMapConfig, CountryConfig
 ├── Controllers/
 │   ├── Bootstrapper
 │   └── GameLoopController
 ├── Services/
-│   ├── Board/, Swap/, Layer/, Level/
+│   ├── Board/          BoardService
+│   ├── Swap/           SwapService
+│   ├── Layer/          LayerService
+│   ├── Level/          LevelService  (содержит LevelState enum)
+│   ├── Factories/      GemFactory
 │   ├── HintService, BoostService
-│   ├── InventoryService   ← ProjectContext
-│   ├── ProgressService    ← ProjectContext
-│   ├── RewardService      ← ProjectContext ✅ NEW
+│   ├── InventoryService, ProgressService, RewardService  ← ProjectContext
 │   └── StarCalculator
 ├── Views/
 │   ├── StageMapView, StageNodeView, CountryNodeView, LevelSelectPopupView
-│   └── BoardView, GemView, LayerView, ObjectiveView, MoveCounterView...
+│   ├── BoardView, GemView, LayerView
+│   ├── ObjectiveView, MoveCounterView, LevelResultView
+│   ├── BackpackView, ActiveBoostView
+│   └── BoardInputHandler
 ├── Presenters/
 │   ├── StageMapPresenter
-│   └── BoardPresenter, LevelPresenter, BoostPresenter...
+│   ├── BoardPresenter, SwapPresenter, LayerPresenter
+│   ├── ObjectivePresenter, LevelPresenter
+│   └── BoostPresenter
 ├── Editor/
 │   ├── WorldMapConfigGenerator, StageMapUISetup, LevelEditorWindow
 │   └── CellDataDrawer, UISetupEditor, StageMapUISetupEditor
 └── Installers/
     ├── ProjectConfigInstaller
-    ├── ProjectServiceInstaller  ← + RewardService ✅
+    ├── ProjectServiceInstaller
     ├── StageMapInstaller, StageMapViewInstaller
     ├── SceneServiceInstaller, SceneViewInstaller, ScenePresenterInstaller
 ```
@@ -260,8 +288,9 @@ Assets/Match3/Scripts/
 ---
 
 ## 🔮 Не реализовано (следующие этапы)
+- **#6** Кнопки Рестарт/Следующий уровень не подключены в LevelPresenter
+- **#7** LevelState enum вынести из LevelService.cs в Core/Enums/
 - Препятствия: Ice, Box, Chain, HedgehogFish
-- Вызов RewardService.GrantAll в LevelPresenter при победе
 - UI попап наград (анимация вылета иконок)
 - CoinService + LivesService (заглушки в RewardService)
 - Комбо-свопы двух супер-фишек

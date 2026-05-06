@@ -25,20 +25,18 @@ namespace Match3.Controllers
 {
     public sealed class GameLoopController : IInitializable, IDisposable
     {
-        private readonly BoardService     _boardService;
-        private readonly SwapService      _swapService;
-        private readonly LayerService     _layerService;
-        private readonly LevelService     _levelService;
-        private readonly HintService      _hintService;
-        private readonly BoostService     _boostService;
-        private readonly InventoryService _inventoryService;
-        private readonly BoardPresenter   _boardPresenter;
-        private readonly LayerPresenter   _layerPresenter;
+        private readonly BoardService      _boardService;
+        private readonly SwapService       _swapService;
+        private readonly LayerService      _layerService;
+        private readonly LevelService      _levelService;
+        private readonly HintService       _hintService;
+        private readonly BoostService      _boostService;
+        private readonly InventoryService  _inventoryService;
+        private readonly BoardPresenter    _boardPresenter;
+        private readonly LayerPresenter    _layerPresenter;
         private readonly BoardInputHandler _inputHandler;
-
-        // Источник текущего уровня — карта + прогресс
-        private readonly WorldMapConfig  _worldMapConfig;
-        private readonly ProgressService _progressService;
+        private readonly WorldMapConfig    _worldMapConfig;
+        private readonly ProgressService   _progressService;
 
         private readonly CompositeDisposable     _disposables = new();
         private readonly CancellationTokenSource _cts         = new();
@@ -124,9 +122,6 @@ namespace Match3.Controllers
 
         // ── Загрузка конфига уровня ───────────────────────────────────────────
 
-        /// <summary>
-        /// Берёт адрес из ProgressService и находит LevelConfig через WorldMapConfig.
-        /// </summary>
         private LevelConfig? ResolveCurrentLevelConfig()
         {
             var address = _progressService.CurrentAddress.CurrentValue;
@@ -175,7 +170,7 @@ namespace Match3.Controllers
 
             try
             {
-                var superType      = BoostTypeToSuperGemType(boost);
+                var superType      = boost.ToSuperGemType();
                 var gem            = _boardService.GetGem(pos);
                 var nodeType       = gem?.GemType ?? NodeType.Red;
                 var explosionCells = GetExplosionCells(pos, superType, nodeType);
@@ -209,16 +204,6 @@ namespace Match3.Controllers
                 _inputHandler.SetInputEnabled(true);
             }
         }
-
-        private static SuperGemType BoostTypeToSuperGemType(BoostType boost) => boost switch
-        {
-            BoostType.HorizontalArrow => SuperGemType.HorizontalArrow,
-            BoostType.VerticalArrow   => SuperGemType.VerticalArrow,
-            BoostType.ColorBomb       => SuperGemType.ColorBomb,
-            BoostType.Bomb            => SuperGemType.Bomb,
-            BoostType.MegaBomb        => SuperGemType.MegaBomb,
-            _                         => SuperGemType.None,
-        };
 
         // ── Hint / Shuffle ────────────────────────────────────────────────────
 
