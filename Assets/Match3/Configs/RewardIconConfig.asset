@@ -12,5 +12,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 11c34c99798ebf941bce479664f9a3b1, type: 3}
   m_Name: RewardIconConfig
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.RewardIconConfig
-  <BoostIcons>k__BackingField: []
-  <RewardIcons>k__BackingField: []
+  <BoostIcons>k__BackingField:
+  - <BoostType>k__BackingField: 1
+    <Icon>k__BackingField: {fileID: -4810964901130312554, guid: 7ffba5fd375e44c4598687aadbc9eff1, type: 3}
+  - <BoostType>k__BackingField: 2
+    <Icon>k__BackingField: {fileID: 72781809908556864, guid: bcb4db38deeda0d4eb462fa25359eac5, type: 3}
+  - <BoostType>k__BackingField: 3
+    <Icon>k__BackingField: {fileID: 72781809908556864, guid: bcb4db38deeda0d4eb462fa25359eac5, type: 3}
+  - <BoostType>k__BackingField: 4
+    <Icon>k__BackingField: {fileID: 72781809908556864, guid: bcb4db38deeda0d4eb462fa25359eac5, type: 3}
+  - <BoostType>k__BackingField: 5
+    <Icon>k__BackingField: {fileID: 72781809908556864, guid: bcb4db38deeda0d4eb462fa25359eac5, type: 3}
+  - <BoostType>k__BackingField: 6
+    <Icon>k__BackingField: {fileID: 72781809908556864, guid: bcb4db38deeda0d4eb462fa25359eac5, type: 3}
+  - <BoostType>k__BackingField: 7
+    <Icon>k__BackingField: {fileID: 72781809908556864, guid: bcb4db38deeda0d4eb462fa25359eac5, type: 3}
+  <RewardIcons>k__BackingField:
+  - <RewardType>k__BackingField: 0
+    <Icon>k__BackingField: {fileID: 0}
+  - <RewardType>k__BackingField: 1
+    <Icon>k__BackingField: {fileID: 0}
+  - <RewardType>k__BackingField: 2
+    <Icon>k__BackingField: {fileID: 0}

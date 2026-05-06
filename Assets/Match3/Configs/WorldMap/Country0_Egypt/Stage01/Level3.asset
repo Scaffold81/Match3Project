@@ -17,6 +17,8 @@ MonoBehaviour:
   <Objectives>k__BackingField:
   - nodeType: 1
     count: 31
+  - nodeType: 2
+    count: 31
   <Grid>k__BackingField:
   - <Cells>k__BackingField:
     - cellType: 0

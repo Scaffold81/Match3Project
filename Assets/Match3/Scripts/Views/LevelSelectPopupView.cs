@@ -1,6 +1,6 @@
 #nullable enable
 
-using System;
+using System.Collections.Generic;
 using DG.Tweening;
 using Match3.Core.Enums;
 using Match3.Core.Models;
@@ -22,10 +22,12 @@ namespace Match3.Views
         [SerializeField] private Image    _characterImage = null!;
 
         [Header("Цели")]
-        [SerializeField] private ObjectiveEntryUI[] _objectiveEntries = Array.Empty<ObjectiveEntryUI>();
+        [SerializeField] private Transform          _objectiveContainer = null!;
+        [SerializeField] private ObjectiveItemView  _objectivePrefab    = null!;
 
         [Header("Награды этапа")]
-        [SerializeField] private RewardEntryUI[] _rewardEntries = Array.Empty<RewardEntryUI>();
+        [SerializeField] private Transform      _rewardContainer = null!;
+        [SerializeField] private RewardItemView _rewardPrefab    = null!;
 
         [Header("Кнопки")]
         [SerializeField] private Button _playButton  = null!;
@@ -36,6 +38,9 @@ namespace Match3.Views
 
         public Observable<Unit> OnPlayClicked  => _onPlayClicked;
         public Observable<Unit> OnCloseClicked => _onCloseClicked;
+
+        private readonly List<ObjectiveItemView> _spawnedObjectives = new();
+        private readonly List<RewardItemView>    _spawnedRewards    = new();
 
         private Tween? _tween;
 
@@ -67,8 +72,8 @@ namespace Match3.Views
             _characterImage.sprite  = characterSprite;
             _characterImage.enabled = characterSprite != null;
 
-            SetupObjectives(objectives, objectiveIcons);
-            SetupRewards(stageRewards, rewardIcons);
+            SpawnObjectives(objectives, objectiveIcons);
+            SpawnRewards(stageRewards, rewardIcons);
 
             _root.SetActive(true);
             _canvasGroup.alpha = 0f;
@@ -90,83 +95,39 @@ namespace Match3.Views
                 .OnComplete(() => _root.SetActive(false));
         }
 
-        // ── Private helpers ───────────────────────────────────────────────────
+        // ── Spawn ─────────────────────────────────────────────────────────────
 
-        private void SetupObjectives(ObjectiveData[] objectives, Sprite?[] icons)
+        private void SpawnObjectives(ObjectiveData[] objectives, Sprite?[] icons)
         {
-            for (var i = 0; i < _objectiveEntries.Length; i++)
+            ClearSpawned(_spawnedObjectives);
+
+            for (var i = 0; i < objectives.Length; i++)
             {
-                if (i < objectives.Length)
-                {
-                    _objectiveEntries[i].gameObject.SetActive(true);
-                    _objectiveEntries[i].Setup(icons[i], objectives[i].count);
-                }
-                else
-                {
-                    _objectiveEntries[i].gameObject.SetActive(false);
-                }
+                var item = Instantiate(_objectivePrefab, _objectiveContainer);
+                var icon = i < icons.Length ? icons[i] : null;
+                item.Setup(objectives[i], icon);
+                _spawnedObjectives.Add(item);
             }
         }
 
-        private void SetupRewards(RewardData[] rewards, Sprite?[] icons)
+        private void SpawnRewards(RewardData[] rewards, Sprite?[] icons)
         {
-            for (var i = 0; i < _rewardEntries.Length; i++)
+            ClearSpawned(_spawnedRewards);
+
+            for (var i = 0; i < rewards.Length; i++)
             {
-                if (i < rewards.Length)
-                {
-                    _rewardEntries[i].gameObject.SetActive(true);
-                    _rewardEntries[i].Setup(rewards[i], i < icons.Length ? icons[i] : null);
-                }
-                else
-                {
-                    _rewardEntries[i].gameObject.SetActive(false);
-                }
+                var item = Instantiate(_rewardPrefab, _rewardContainer);
+                var icon = i < icons.Length ? icons[i] : null;
+                item.Setup(rewards[i], icon);
+                _spawnedRewards.Add(item);
             }
         }
-    }
 
-    // ── Вложенные классы для Inspector ────────────────────────────────────────
-
-    [Serializable]
-    public sealed class ObjectiveEntryUI
-    {
-        [SerializeField] private GameObject _root      = null!;
-        [SerializeField] private Image      _icon      = null!;
-        [SerializeField] private TMP_Text   _countText = null!;
-
-        public GameObject gameObject => _root;
-
-        public void Setup(Sprite? icon, int count)
+        private static void ClearSpawned<T>(List<T> list) where T : MonoBehaviour
         {
-            _icon.sprite    = icon;
-            _icon.enabled   = icon != null;
-            _countText.text = count.ToString();
+            foreach (var item in list)
+                if (item != null) Destroy(item.gameObject);
+            list.Clear();
         }
-    }
-
-    [Serializable]
-    public sealed class RewardEntryUI
-    {
-        [SerializeField] private GameObject _root      = null!;
-        [SerializeField] private Image      _icon      = null!;
-        [SerializeField] private TMP_Text   _nameText  = null!;
-        [SerializeField] private TMP_Text   _countText = null!;
-
-        public GameObject gameObject => _root;
-
-        public void Setup(RewardData reward, Sprite? icon)
-        {
-            var hasIcon       = icon != null;
-            _icon.sprite      = icon;
-            _icon.enabled     = hasIcon;
-            _nameText.text    = hasIcon ? string.Empty : GetLabel(reward);
-            _nameText.enabled = !hasIcon;
-            _countText.text   = $"x{reward.Amount}";
-        }
-
-        private static string GetLabel(RewardData reward) =>
-            reward.Type == RewardType.Boost
-                ? reward.Boost.ToString()
-                : reward.Type.ToString();
     }
 }

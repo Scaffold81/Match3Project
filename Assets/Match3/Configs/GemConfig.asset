@@ -15,46 +15,46 @@ MonoBehaviour:
   <GemViewPrefab>k__BackingField: {fileID: 8249206045616124838, guid: 37e8b829e8c78654aa3667caac0cb356, type: 3}
   <Gems>k__BackingField:
   - <NodeType>k__BackingField: 0
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Color>k__BackingField: {r: 0, g: 0, b: 0, a: 0}
     <Prefab>k__BackingField: {fileID: 1667346096268697222, guid: c5a878325362e5e4e85617fdcfeac1b8, type: 3}
   - <NodeType>k__BackingField: 1
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Color>k__BackingField: {r: 1, g: 0, b: 0, a: 1}
     <Prefab>k__BackingField: {fileID: 5224910683752813087, guid: 43a8f8fac1797e04ab1b8b49d1dbb72c, type: 3}
   - <NodeType>k__BackingField: 2
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Color>k__BackingField: {r: 0, g: 0, b: 1, a: 1}
     <Prefab>k__BackingField: {fileID: 5224910683752813087, guid: 43a8f8fac1797e04ab1b8b49d1dbb72c, type: 3}
   - <NodeType>k__BackingField: 3
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Color>k__BackingField: {r: 0, g: 0.6313726, b: 0, a: 1}
     <Prefab>k__BackingField: {fileID: 8750366332853623878, guid: af6e618f0561431478afc01615948d88, type: 3}
   - <NodeType>k__BackingField: 4
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Color>k__BackingField: {r: 1, g: 1, b: 0, a: 1}
     <Prefab>k__BackingField: {fileID: 8750366332853623878, guid: bb222351f97d16e438113b7d38ae154a, type: 3}
   - <NodeType>k__BackingField: 5
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Color>k__BackingField: {r: 1, g: 0, b: 1, a: 1}
     <Prefab>k__BackingField: {fileID: 8750366332853623878, guid: 7f4509750959b134daa45169b24ae307, type: 3}
   - <NodeType>k__BackingField: 6
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Color>k__BackingField: {r: 1, g: 0.5803922, b: 0, a: 1}
     <Prefab>k__BackingField: {fileID: 2809490234240027630, guid: 32c49e2eb3b42ad4ab70ed36f2e280eb, type: 3}
   <SuperGemIcons>k__BackingField:
   - <SuperGemType>k__BackingField: 1
-    <Icon>k__BackingField: {fileID: 0}
+    <Icon>k__BackingField: {fileID: -4810964901130312554, guid: 7ffba5fd375e44c4598687aadbc9eff1, type: 3}
     <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
   - <SuperGemType>k__BackingField: 2
-    <Icon>k__BackingField: {fileID: 0}
+    <Icon>k__BackingField: {fileID: 72781809908556864, guid: bcb4db38deeda0d4eb462fa25359eac5, type: 3}
     <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
   - <SuperGemType>k__BackingField: 3
-    <Icon>k__BackingField: {fileID: 0}
+    <Icon>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
   - <SuperGemType>k__BackingField: 4
-    <Icon>k__BackingField: {fileID: 0}
+    <Icon>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
   - <SuperGemType>k__BackingField: 5
-    <Icon>k__BackingField: {fileID: 0}
+    <Icon>k__BackingField: {fileID: -2278566297644842510, guid: 4440ae5221284ed4ba5fa87c02d3ae8d, type: 3}
     <Tint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}

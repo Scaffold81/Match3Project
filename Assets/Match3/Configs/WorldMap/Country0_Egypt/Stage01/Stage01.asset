@@ -14,6 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.StageConfig
   <StageName>k__BackingField: Stage 1
   <StageIcon>k__BackingField: {fileID: 0}
+  <CharacterSprite>k__BackingField: {fileID: 0}
+  <StageRewards>k__BackingField:
+  - <Type>k__BackingField: 0
+    <Boost>k__BackingField: 1
+    <Amount>k__BackingField: 5
+  - <Type>k__BackingField: 1
+    <Boost>k__BackingField: 0
+    <Amount>k__BackingField: 100
+  - <Type>k__BackingField: 0
+    <Boost>k__BackingField: 2
+    <Amount>k__BackingField: 1
+  <IsBonusStage>k__BackingField: 0
+  <SuperPrize>k__BackingField: {fileID: 0}
   <Levels>k__BackingField:
   - {fileID: 11400000, guid: afdf16e9be9238544bac642caace8d97, type: 2}
   - {fileID: 11400000, guid: d78095e5db81d0241aeda4ac7a7fc86a, type: 2}
