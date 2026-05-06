@@ -3,6 +3,7 @@
 using System;
 using DG.Tweening;
 using R3;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,7 +13,7 @@ namespace Match3.Views
     {
         [SerializeField] private GameObject  _root           = null!;
         [SerializeField] private CanvasGroup _canvasGroup    = null!;
-        [SerializeField] private Text        _stageNameLabel = null!;
+        [SerializeField] private TMP_Text    _stageNameLabel = null!;
         [SerializeField] private Button      _closeButton    = null!;
 
         [SerializeField] private LevelButtonEntry[] _levelEntries = Array.Empty<LevelButtonEntry>();
@@ -81,10 +82,8 @@ namespace Match3.Views
     [Serializable]
     public sealed class LevelButtonEntry
     {
-        // Обычные публичные поля — сериализуются Unity напрямую
-        // и доступны для присвоения в Editor-скриптах
         [SerializeField] public Button     Button      = null!;
-        [SerializeField] public Text       LevelLabel  = null!;
+        [SerializeField] public TMP_Text   LevelLabel  = null!;
         [SerializeField] public Image[]    Stars       = Array.Empty<Image>();
         [SerializeField] public GameObject LockOverlay = null!;
 

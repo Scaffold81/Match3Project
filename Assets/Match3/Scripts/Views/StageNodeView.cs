@@ -38,10 +38,6 @@ namespace Match3.Views
 
         private void OnDestroy() => _onClicked.Dispose();
 
-        /// <summary>
-        /// Обновляет визуальное состояние ноды.
-        /// Icon и позиция задаются в Editor — здесь не трогаем.
-        /// </summary>
         public void Refresh(int totalStars, bool isUnlocked)
         {
             IsUnlocked = isUnlocked;

@@ -1,5 +1,6 @@
 #nullable enable
 
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,13 +17,10 @@ namespace Match3.Views
 
         [Header("Элементы")]
         [SerializeField] private Image      _icon        = null!;
-        [SerializeField] private Text       _nameLabel   = null!;
+        [SerializeField] private TMP_Text   _nameLabel   = null!;
         [SerializeField] private GameObject _lockOverlay = null!;
         [SerializeField] private Image      _background  = null!;
 
-        /// <summary>
-        /// Обновляет визуальное состояние заголовка страны.
-        /// </summary>
         public void Refresh(Sprite icon, string countryName, Color sectionColor, bool isUnlocked)
         {
             _icon.sprite      = isUnlocked ? icon : null;
