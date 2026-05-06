@@ -2,6 +2,7 @@
 
 using System;
 using DG.Tweening;
+using Match3.Core.Models;
 using R3;
 using TMPro;
 using UnityEngine;
@@ -11,52 +12,62 @@ namespace Match3.Views
 {
     public sealed class LevelSelectPopupView : MonoBehaviour
     {
-        [SerializeField] private GameObject  _root           = null!;
-        [SerializeField] private CanvasGroup _canvasGroup    = null!;
-        [SerializeField] private TMP_Text    _stageNameLabel = null!;
-        [SerializeField] private Button      _closeButton    = null!;
+        [Header("Корень попапа")]
+        [SerializeField] private GameObject  _root        = null!;
+        [SerializeField] private CanvasGroup _canvasGroup = null!;
 
-        [SerializeField] private LevelButtonEntry[] _levelEntries = Array.Empty<LevelButtonEntry>();
+        [Header("Шапка")]
+        [SerializeField] private TMP_Text _levelLabel     = null!;
+        [SerializeField] private Image    _characterImage = null!;
 
-        private readonly Subject<int>  _onLevelClicked = new();
+        [Header("Цели")]
+        [SerializeField] private ObjectiveEntryUI[] _objectiveEntries = Array.Empty<ObjectiveEntryUI>();
+
+        [Header("Награды этапа")]
+        [SerializeField] private RewardEntryUI[] _rewardEntries = Array.Empty<RewardEntryUI>();
+
+        [Header("Кнопки")]
+        [SerializeField] private Button _playButton  = null!;
+        [SerializeField] private Button _closeButton = null!;
+
+        private readonly Subject<Unit> _onPlayClicked  = new();
         private readonly Subject<Unit> _onCloseClicked = new();
 
-        public Observable<int>  OnLevelClicked => _onLevelClicked;
+        public Observable<Unit> OnPlayClicked  => _onPlayClicked;
         public Observable<Unit> OnCloseClicked => _onCloseClicked;
 
         private Tween? _tween;
 
         private void Awake()
         {
+            _playButton.onClick.AddListener(()  => _onPlayClicked.OnNext(Unit.Default));
             _closeButton.onClick.AddListener(() => _onCloseClicked.OnNext(Unit.Default));
-
-            for (var i = 0; i < _levelEntries.Length; i++)
-            {
-                var levelIndex = i;
-                _levelEntries[i].Button.onClick.AddListener(() =>
-                    _onLevelClicked.OnNext(levelIndex));
-            }
-
             _root.SetActive(false);
         }
 
         private void OnDestroy()
         {
             _tween?.Kill();
-            _onLevelClicked.Dispose();
+            _onPlayClicked.Dispose();
             _onCloseClicked.Dispose();
         }
 
-        public void Show(string stageName, int[] starsPerLevel, bool[] isUnlocked)
-        {
-            _stageNameLabel.text = stageName;
+        // ── Public API ────────────────────────────────────────────────────────
 
-            for (var i = 0; i < _levelEntries.Length; i++)
-            {
-                var unlocked = i < isUnlocked.Length && isUnlocked[i];
-                var stars    = i < starsPerLevel.Length ? starsPerLevel[i] : 0;
-                _levelEntries[i].Setup(i + 1, stars, unlocked);
-            }
+        public void Show(
+            string          levelTitle,
+            Sprite?         characterSprite,
+            ObjectiveData[] objectives,
+            Sprite?[]       objectiveIcons,
+            RewardData[]    stageRewards,
+            Sprite?[]       rewardIcons)
+        {
+            _levelLabel.text        = levelTitle;
+            _characterImage.sprite  = characterSprite;
+            _characterImage.enabled = characterSprite != null;
+
+            SetupObjectives(objectives, objectiveIcons);
+            SetupRewards(stageRewards, rewardIcons);
 
             _root.SetActive(true);
             _canvasGroup.alpha = 0f;
@@ -77,24 +88,75 @@ namespace Match3.Views
                 .SetLink(gameObject)
                 .OnComplete(() => _root.SetActive(false));
         }
+
+        // ── Private helpers ───────────────────────────────────────────────────
+
+        private void SetupObjectives(ObjectiveData[] objectives, Sprite?[] icons)
+        {
+            for (var i = 0; i < _objectiveEntries.Length; i++)
+            {
+                if (i < objectives.Length)
+                {
+                    _objectiveEntries[i].gameObject.SetActive(true);
+                    _objectiveEntries[i].Setup(icons[i], objectives[i].count);
+                }
+                else
+                {
+                    _objectiveEntries[i].gameObject.SetActive(false);
+                }
+            }
+        }
+
+        private void SetupRewards(RewardData[] rewards, Sprite?[] icons)
+        {
+            for (var i = 0; i < _rewardEntries.Length; i++)
+            {
+                if (i < rewards.Length)
+                {
+                    _rewardEntries[i].gameObject.SetActive(true);
+                    _rewardEntries[i].Setup(rewards[i], i < icons.Length ? icons[i] : null);
+                }
+                else
+                {
+                    _rewardEntries[i].gameObject.SetActive(false);
+                }
+            }
+        }
+    }
+
+    // ── Вложенные классы для Inspector ────────────────────────────────────────
+
+    [Serializable]
+    public sealed class ObjectiveEntryUI
+    {
+        [SerializeField] private GameObject _root      = null!;
+        [SerializeField] private Image      _icon      = null!;
+        [SerializeField] private TMP_Text   _countText = null!;
+
+        public GameObject gameObject => _root;
+
+        public void Setup(Sprite? icon, int count)
+        {
+            _icon.sprite    = icon;
+            _icon.enabled   = icon != null;
+            _countText.text = count.ToString();
+        }
     }
 
     [Serializable]
-    public sealed class LevelButtonEntry
+    public sealed class RewardEntryUI
     {
-        [SerializeField] public Button     Button      = null!;
-        [SerializeField] public TMP_Text   LevelLabel  = null!;
-        [SerializeField] public Image[]    Stars       = Array.Empty<Image>();
-        [SerializeField] public GameObject LockOverlay = null!;
+        [SerializeField] private GameObject _root       = null!;
+        [SerializeField] private Image      _icon       = null!;
+        [SerializeField] private TMP_Text   _amountText = null!;
 
-        public void Setup(int levelNumber, int stars, bool isUnlocked)
+        public GameObject gameObject => _root;
+
+        public void Setup(RewardData reward, Sprite? icon)
         {
-            if (LevelLabel  != null) LevelLabel.text      = $"Уровень {levelNumber}";
-            if (Button      != null) Button.interactable  = isUnlocked;
-            if (LockOverlay != null) LockOverlay.SetActive(!isUnlocked);
-
-            for (var i = 0; i < Stars.Length; i++)
-                if (Stars[i] != null) Stars[i].enabled = i < stars;
+            _icon.sprite     = icon;
+            _icon.enabled    = icon != null;
+            _amountText.text = $"x{reward.Amount}";
         }
     }
 }

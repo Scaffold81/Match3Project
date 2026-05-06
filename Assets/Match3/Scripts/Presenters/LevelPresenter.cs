@@ -1,11 +1,13 @@
 #nullable enable
 
 using System;
+using Match3.Configs;
 using Match3.Core.Models;
 using Match3.Services;
 using Match3.Services.Level;
 using Match3.Views;
 using R3;
+using UnityEngine;
 using Zenject;
 
 namespace Match3.Presenters
@@ -15,6 +17,7 @@ namespace Match3.Presenters
         private readonly LevelService       _levelService;
         private readonly ProgressService    _progressService;
         private readonly RewardService      _rewardService;
+        private readonly WorldMapConfig     _worldMapConfig;
         private readonly ObjectivePresenter _objectivePresenter;
         private readonly LevelResultView    _levelResultView;
         private readonly MoveCounterView    _moveCounterView;
@@ -26,6 +29,7 @@ namespace Match3.Presenters
             LevelService       levelService,
             ProgressService    progressService,
             RewardService      rewardService,
+            WorldMapConfig     worldMapConfig,
             ObjectivePresenter objectivePresenter,
             LevelResultView    levelResultView,
             MoveCounterView    moveCounterView)
@@ -33,6 +37,7 @@ namespace Match3.Presenters
             _levelService       = levelService;
             _progressService    = progressService;
             _rewardService      = rewardService;
+            _worldMapConfig     = worldMapConfig;
             _objectivePresenter = objectivePresenter;
             _levelResultView    = levelResultView;
             _moveCounterView    = moveCounterView;
@@ -71,11 +76,9 @@ namespace Match3.Presenters
                 case LevelState.Won:
                     OnWon();
                     break;
-
                 case LevelState.Lost:
                     _levelResultView.ShowLose();
                     break;
-
                 case LevelState.Playing:
                     _levelResultView.Hide();
                     break;
@@ -85,11 +88,11 @@ namespace Match3.Presenters
         private void OnWon()
         {
             SaveProgress();
-            GrantRewards();
+            TryGrantStageRewards();
             _levelResultView.ShowWin();
         }
 
-        // ── Прогресс и награды ────────────────────────────────────────────────
+        // ── Прогресс ─────────────────────────────────────────────────────────
 
         private void SaveProgress()
         {
@@ -104,12 +107,26 @@ namespace Match3.Presenters
             _progressService.SetStars(address, stars);
         }
 
-        private void GrantRewards()
-        {
-            var config = _levelService.CurrentConfig;
-            if (config == null || config.Rewards.Length == 0) return;
+        // ── Награды этапа ─────────────────────────────────────────────────────
 
-            _rewardService.GrantAll(config.Rewards);
+        /// <summary>
+        /// Выдаёт StageRewards если только что был пройден последний уровень этапа.
+        /// Проверяем ПОСЛЕ сохранения прогресса.
+        /// </summary>
+        private void TryGrantStageRewards()
+        {
+            var address = _progressService.CurrentAddress.CurrentValue;
+            var stage   = _worldMapConfig.GetStage(address.CountryIndex, address.StageIndex);
+            if (stage == null || stage.StageRewards.Length == 0) return;
+
+            // Проверяем что все 3 уровня этапа теперь пройдены
+            if (!_progressService.IsStageCompleted(address.CountryIndex, address.StageIndex)) return;
+
+            // Проверяем что именно сейчас закрылся последний уровень (LevelIndex == 2)
+            if (address.LevelIndex != stage.LevelCount - 1) return;
+
+            _rewardService.GrantAll(stage.StageRewards);
+            Debug.LogWarning($"[LevelPresenter] Этап завершён — выдано {stage.StageRewards.Length} наград");
         }
 
         public void Dispose() => _disposables.Dispose();

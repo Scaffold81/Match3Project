@@ -9,6 +9,7 @@ namespace Match3.Installers
 {
     /// <summary>
     /// View-биндинги для сцены StageMapScene.
+    /// GemConfig биндится в ProjectConfigInstaller (ProjectContext).
     /// </summary>
     public sealed class StageMapViewInstaller : MonoInstaller
     {

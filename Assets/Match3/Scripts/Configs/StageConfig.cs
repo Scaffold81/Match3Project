@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Match3.Core.Models;
 using UnityEngine;
 
 namespace Match3.Configs
@@ -17,7 +18,15 @@ namespace Match3.Configs
         public Sprite StageIcon { get; private set; } = null!;
 
         [field: SerializeField]
-        [field: Tooltip("Если true — это бонусный этап. Открывается когда все обычные этапы страны пройдены. Даёт супер-приз.")]
+        [field: Tooltip("Арт персонажа на панели выбора уровня")]
+        public Sprite? CharacterSprite { get; private set; }
+
+        [field: SerializeField]
+        [field: Tooltip("Награды за прохождение всех 3 уровней этапа. Выдаются через RewardService.")]
+        public RewardData[] StageRewards { get; private set; } = Array.Empty<RewardData>();
+
+        [field: SerializeField]
+        [field: Tooltip("Если true — это бонусный этап. Открывается когда все обычные этапы страны пройдены.")]
         public bool IsBonusStage { get; private set; }
 
         [field: SerializeField]
@@ -34,6 +43,17 @@ namespace Match3.Configs
         {
             if (index < 0 || index >= Levels.Length) return null;
             return Levels[index];
+        }
+
+        /// <summary>
+        /// Возвращает индекс следующего непройденного уровня в этапе.
+        /// completedMask — массив bool[3]: true если уровень пройден.
+        /// </summary>
+        public int GetNextLevelIndex(bool[] completedMask)
+        {
+            for (var i = 0; i < completedMask.Length; i++)
+                if (!completedMask[i]) return i;
+            return 0;
         }
     }
 }
