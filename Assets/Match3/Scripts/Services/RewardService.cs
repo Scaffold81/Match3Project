@@ -18,7 +18,7 @@ namespace Match3.Services
     ///   Coins → CoinService (заглушка — расширить когда появится)
     ///   Lives → LivesService (заглушка — расширить когда появится)
     /// </summary>
-    public sealed class RewardService
+    public sealed class RewardService : IDisposable
     {
         private readonly InventoryService _inventoryService;
 

@@ -24,9 +24,9 @@ namespace Match3.Installers
                 .NonLazy();
 
             // Живут между сессиями
-            Container.Bind<InventoryService>().AsSingle().NonLazy();
-            Container.Bind<ProgressService>() .AsSingle().NonLazy();
-            Container.Bind<RewardService>()   .AsSingle().NonLazy();
+            Container.Bind<InventoryService>()                    .AsSingle().NonLazy();
+            Container.Bind<ProgressService>()                     .AsSingle().NonLazy();
+            Container.BindInterfacesAndSelfTo<RewardService>()    .AsSingle().NonLazy();
         }
     }
 }
