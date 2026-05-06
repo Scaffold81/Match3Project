@@ -8,6 +8,7 @@ using Match3.Configs;
 using Match3.Core;
 using Match3.Core.Enums;
 using Match3.Services.Board;
+using Match3.Services.Factories;
 using Match3.Views;
 using UnityEngine;
 using Zenject;
@@ -21,6 +22,7 @@ namespace Match3.Presenters
         private readonly BoardConfig     _boardConfig;
         private readonly GemConfig       _gemConfig;
         private readonly AnimationConfig _animConfig;
+        private readonly GemFactory      _gemFactory;
 
         [Inject]
         public BoardPresenter(
@@ -28,15 +30,17 @@ namespace Match3.Presenters
             BoardView       boardView,
             BoardConfig     boardConfig,
             GemConfig       gemConfig,
-            AnimationConfig animConfig)
+            AnimationConfig animConfig,
+            GemFactory      gemFactory)
         {
             _boardService = boardService;
             _boardView    = boardView;
             _boardConfig  = boardConfig;
             _gemConfig    = gemConfig;
             _animConfig   = animConfig;
+            _gemFactory   = gemFactory;
 
-            _boardView.Initialize(_boardConfig, _gemConfig.GemViewPrefab);
+            _boardView.Initialize(_boardConfig);
         }
 
         public void Initialize() { }
@@ -54,14 +58,9 @@ namespace Match3.Presenters
 
         public GemView CreateGemAt(Vector2Int pos, NodeType type)
         {
-            var visual = _gemConfig.GetVisual(type)
-                ?? throw new InvalidOperationException($"No visual for {type}");
-
-            var view = _boardView.InstantiateGem(pos.x, pos.y);
-            view.SetConfig(_gemConfig);
+            var view = _gemFactory.Create(type, _boardView.GemContainer, $"Gem_{pos.x}_{pos.y}");
             view.Init(pos, type);
-            view.SetVisual(type, visual);
-
+            _boardView.PositionGem(view.RectTransform, pos);
             _boardService.PlaceGem(pos, view);
             return view;
         }
@@ -148,19 +147,10 @@ namespace Match3.Presenters
 
         // ── Shuffle ───────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Анимация перемешивания:
-        ///   Фаза 1 — PlayFold: все фишки сжимаются (НЕ уничтожаются, НЕ вызывает SetEmpty)
-        ///   Фаза 2 — SetGemType: меняем спрайт/цвет в сжатом состоянии
-        ///   Фаза 3 — PlaySpawn: разворачиваются с новым визуалом
-        ///
-        /// HintService.Shuffle() уже обновил данные в BoardService до вызова этого метода.
-        /// </summary>
         public async UniTask AnimateShuffleAsync(
             IEnumerable<(Vector2Int pos, NodeType type)> newLayout,
             CancellationToken ct)
         {
-            // Собираем все гемы с их новыми типами
             var allGems = new List<(GemView view, NodeType newType)>();
             foreach (var (pos, type) in newLayout)
             {
@@ -171,7 +161,6 @@ namespace Match3.Presenters
 
             if (allGems.Count == 0) return;
 
-            // Фаза 1 — сжатие через PlayFold (не SetEmpty, не MarkDestroyed)
             var foldTasks = new List<UniTask>(allGems.Count);
             foreach (var (view, _) in allGems)
             {
@@ -181,11 +170,9 @@ namespace Match3.Presenters
             }
             await UniTask.WhenAll(foldTasks).AttachExternalCancellation(ct);
 
-            // Фаза 2 — меняем визуал пока фишки сжаты (scale = 0, невидимы)
             foreach (var (view, newType) in allGems)
                 view.SetGemType(newType);
 
-            // Фаза 3 — разворачиваемся с новым цветом
             foreach (var (view, _) in allGems)
                 view.PlaySpawn(_animConfig.ShuffleFoldDuration);
 

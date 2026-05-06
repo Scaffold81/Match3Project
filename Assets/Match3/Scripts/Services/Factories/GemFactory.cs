@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using Match3.Configs;
 using Match3.Core.Enums;
 using Match3.Views;
@@ -20,25 +21,22 @@ namespace Match3.Services.Factories
             _gemConfig = gemConfig;
         }
 
-        public GemView? Create(NodeType nodeType, string name)
+        /// <summary>
+        /// Создаёт GemView из базового GemViewPrefab, назначает визуал и конфиг.
+        /// Позиционирование — ответственность BoardView.
+        /// </summary>
+        public GemView Create(NodeType nodeType, Transform parent, string name)
         {
-            var visual = _gemConfig.GetVisual(nodeType);
-            if (visual == null)
-            {
-                Debug.LogWarning($"GemFactory: no visual data for NodeType={nodeType}");
-                return null;
-            }
+            var visual = _gemConfig.GetVisual(nodeType)
+                ?? throw new InvalidOperationException($"[GemFactory] No visual for {nodeType}");
 
-            if (visual.Prefab == null)
-            {
-                Debug.LogWarning($"GemFactory: no Prefab assigned for NodeType={nodeType}");
-                return null;
-            }
+            var view = _container.InstantiatePrefabForComponent<GemView>(
+                _gemConfig.GemViewPrefab, parent);
 
-            var gemView = _container.InstantiatePrefabForComponent<GemView>(visual.Prefab);
-            gemView.name = name;
-            gemView.SetVisual(nodeType, visual);
-            return gemView;
+            view.name = name;
+            view.SetConfig(_gemConfig);
+            view.SetVisual(nodeType, visual);
+            return view;
         }
     }
 }

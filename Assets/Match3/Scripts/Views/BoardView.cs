@@ -12,8 +12,7 @@ namespace Match3.Views
         [SerializeField] private RectTransform _cellContainer = null!;
         [SerializeField] private RectTransform _dragLayer     = null!;
 
-        private BoardConfig _boardConfig   = null!;
-        private GameObject  _gemViewPrefab = null!;
+        private BoardConfig _boardConfig = null!;
 
         private float _cellSize;
         private int   _rows;
@@ -30,10 +29,9 @@ namespace Match3.Views
 
         // ── Инициализация ────────────────────────────────────────────────────
 
-        public void Initialize(BoardConfig boardConfig, GameObject gemViewPrefab)
+        public void Initialize(BoardConfig boardConfig)
         {
-            _boardConfig   = boardConfig;
-            _gemViewPrefab = gemViewPrefab;
+            _boardConfig = boardConfig;
         }
 
         public void InitializeLayout(int rows, int cols)
@@ -47,7 +45,6 @@ namespace Match3.Views
             var padding     = _boardConfig.BoardPadding;
             var spacing     = _boardConfig.CellSpacing;
 
-            // cellSize — максимально возможный, чтобы сетка влезла по обеим осям
             var cellByW = (boardWidth  - padding * 2f - spacing * (cols - 1)) / cols;
             var cellByH = (boardHeight - padding * 2f - spacing * (rows - 1)) / rows;
             _cellSize = Mathf.Max(Mathf.Min(cellByW, cellByH), 1f);
@@ -55,7 +52,6 @@ namespace Match3.Views
             var totalWidth  = cols * _cellSize + spacing * (cols - 1);
             var totalHeight = rows * _cellSize + spacing * (rows - 1);
 
-            // Центрируем сетку внутри доски
             var offsetX      = (boardWidth  - totalWidth)  * 0.5f;
             var offsetY      = (boardHeight - totalHeight) * 0.5f;
             var containerPos = new Vector2(offsetX, -offsetY);
@@ -83,17 +79,18 @@ namespace Match3.Views
             rt.anchoredPosition = pos;
         }
 
-        // ── Gem factory ───────────────────────────────────────────────────────
+        // ── Позиционирование фишки ────────────────────────────────────────────
 
-        public GemView InstantiateGem(int row, int col)
+        /// <summary>
+        /// Назначает размер и позицию RectTransform фишки в слоте (row, col).
+        /// Вызывается GemFactory после создания или BoardPresenter при перемещении.
+        /// </summary>
+        public void PositionGem(RectTransform rt, Vector2Int slot)
         {
             if (!_layoutReady)
-                throw new InvalidOperationException("Call InitializeLayout before InstantiateGem");
+                throw new InvalidOperationException("Call InitializeLayout before PositionGem");
 
-            var view = Instantiate(_gemViewPrefab, _gemContainer).GetComponent<GemView>();
-            view.gameObject.name = $"Gem_{row}_{col}";
-            ApplySlotTransform(view.RectTransform, new Vector2Int(row, col));
-            return view;
+            ApplySlotTransform(rt, slot);
         }
 
         public void DestroyGem(GemView gem)

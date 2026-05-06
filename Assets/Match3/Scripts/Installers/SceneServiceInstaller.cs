@@ -3,6 +3,7 @@
 using Match3.Controllers;
 using Match3.Services.Board;
 using Match3.Services.Boost;
+using Match3.Services.Factories;
 using Match3.Services.Hint;
 using Match3.Services.Layer;
 using Match3.Services.Level;
@@ -21,6 +22,7 @@ namespace Match3.Installers
             Container.Bind<LevelService>().AsSingle().NonLazy();
             Container.Bind<HintService>().AsSingle().NonLazy();
             Container.Bind<BoostService>().AsSingle().NonLazy();
+            Container.Bind<GemFactory>().AsSingle().NonLazy();
 
             Container
                 .BindInterfacesAndSelfTo<GameLoopController>()
