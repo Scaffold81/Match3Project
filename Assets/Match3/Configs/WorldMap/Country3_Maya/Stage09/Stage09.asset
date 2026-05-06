@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50b0e762e91984240907c3d3dd4d3271, type: 3}
+  m_Name: Stage09
+  m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.StageConfig
+  <StageName>k__BackingField: Stage 9
+  <StageIcon>k__BackingField: {fileID: 0}
+  <Levels>k__BackingField:
+  - {fileID: 11400000, guid: 500bc2208c87a3046a5be03eebf11186, type: 2}
+  - {fileID: 11400000, guid: cb3b1939deff2e143a0dfbad1281db58, type: 2}
+  - {fileID: 11400000, guid: 70ed228c9d8041541b2cfccd52a646d1, type: 2}

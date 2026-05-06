@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 715a37446c878c443aeaf2b095ea71a8, type: 3}
+  m_Name: WorldMapConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.WorldMapConfig
+  <Countries>k__BackingField:
+  - {fileID: 11400000, guid: 5a6d3639aa25a0d40a0e2118d8d45e96, type: 2}
+  - {fileID: 11400000, guid: e87831ed8c5c5454bbe3cd58ddbaf86c, type: 2}
+  - {fileID: 11400000, guid: e9d7c0f24dc07f943af918df6d565614, type: 2}
+  - {fileID: 11400000, guid: 2f7e70de3e3bde94c870114526787365, type: 2}
+  - {fileID: 11400000, guid: 8e6007b9c5aa0b54495e70a2491ede79, type: 2}

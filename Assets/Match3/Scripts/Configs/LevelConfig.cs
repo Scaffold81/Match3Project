@@ -15,16 +15,23 @@ namespace Match3.Configs
         [field: SerializeField] public ObjectiveData[] Objectives { get; private set; } = Array.Empty<ObjectiveData>();
         [field: SerializeField] public CellRow[] Grid { get; private set; } = Array.Empty<CellRow>();
 
+        [field: SerializeField]
+        [field: Tooltip("Награды за прохождение уровня. Выдаются через RewardService при победе.")]
+        public RewardData[] Rewards { get; private set; } = Array.Empty<RewardData>();
+
         public int Rows    => Grid.Length;
         public int Columns => Grid.Length > 0 ? Grid[0].Cells.Length : 0;
 
         public CellData GetCell(int row, int col) => Grid[row].Cells[col];
 
-        public static LevelConfig CreateForTest(CellRow[] grid, int moveLimit, ObjectiveData[] objectives)
+        public static LevelConfig CreateForTest(
+            CellRow[]       grid,
+            int             moveLimit,
+            ObjectiveData[] objectives)
         {
-            var config = CreateInstance<LevelConfig>();
-            config.Grid       = grid;
-            config.MoveLimit  = moveLimit;
+            var config       = CreateInstance<LevelConfig>();
+            config.Grid      = grid;
+            config.MoveLimit = moveLimit;
             config.Objectives = objectives;
             return config;
         }

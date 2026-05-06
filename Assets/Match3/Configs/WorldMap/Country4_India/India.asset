@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3edbe9718fdab9c41b39afb9ce91a3fb, type: 3}
+  m_Name: India
+  m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.CountryConfig
+  <CountryName>k__BackingField: India
+  <CountryIcon>k__BackingField: {fileID: 0}
+  <LockedIcon>k__BackingField: {fileID: 0}
+  <SectionColor>k__BackingField: {r: 0.86, g: 0.72, b: 0.94, a: 1}
+  <Stages>k__BackingField:
+  - {fileID: 11400000, guid: 02869d90ca2ab7741ab3e8dd8241b5c0, type: 2}
+  - {fileID: 11400000, guid: c7195c9b3983e264b9fce65024eb84ab, type: 2}
+  - {fileID: 11400000, guid: d33a7d3f7aeb3794c90509aa7b435b1b, type: 2}
+  - {fileID: 11400000, guid: 4077863a9acf0e746b4e52f11dbef6f2, type: 2}
+  - {fileID: 11400000, guid: f223bbcd7083d7f44bfd918845b36966, type: 2}
+  - {fileID: 11400000, guid: a2c7db40de84cf04bb12b60311e8e13a, type: 2}
+  - {fileID: 11400000, guid: a388644635df9754483b861465eb9103, type: 2}
+  - {fileID: 11400000, guid: 4b00bdf6a2bd36147bc99b653e85d1cb, type: 2}
+  - {fileID: 11400000, guid: 8f8c7b511480f4c4594e2465aca49aa6, type: 2}

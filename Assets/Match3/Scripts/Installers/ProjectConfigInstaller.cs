@@ -12,6 +12,7 @@ namespace Match3.Installers
         [SerializeField] private BoardConfig           _boardConfig           = null!;
         [SerializeField] private AnimationConfig       _animationConfig       = null!;
         [SerializeField] private LevelConfigRepository _levelConfigRepository = null!;
+        [SerializeField] private WorldMapConfig        _worldMapConfig        = null!;
 
         public override void InstallBindings()
         {
@@ -21,21 +22,21 @@ namespace Match3.Installers
             Container.BindInstance(_boardConfig).AsSingle();
             Container.BindInstance(_animationConfig).AsSingle();
             Container.BindInstance(_levelConfigRepository).AsSingle();
+            Container.BindInstance(_worldMapConfig).AsSingle();
         }
 
         private void ValidateConfigs()
         {
             if (_gemConfig == null)
                 Debug.LogError("ProjectConfigInstaller: GemConfig is not assigned");
-
             if (_boardConfig == null)
                 Debug.LogError("ProjectConfigInstaller: BoardConfig is not assigned");
-
             if (_animationConfig == null)
                 Debug.LogError("ProjectConfigInstaller: AnimationConfig is not assigned");
-
             if (_levelConfigRepository == null)
                 Debug.LogError("ProjectConfigInstaller: LevelConfigRepository is not assigned");
+            if (_worldMapConfig == null)
+                Debug.LogError("ProjectConfigInstaller: WorldMapConfig is not assigned");
         }
     }
 }

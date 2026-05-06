@@ -8,6 +8,7 @@ using Match3.Configs;
 using Match3.Core;
 using Match3.Core.Enums;
 using Match3.Presenters;
+using Match3.Services;
 using Match3.Services.Board;
 using Match3.Services.Boost;
 using Match3.Services.Hint;
@@ -24,17 +25,20 @@ namespace Match3.Controllers
 {
     public sealed class GameLoopController : IInitializable, IDisposable
     {
-        private readonly BoardService          _boardService;
-        private readonly SwapService           _swapService;
-        private readonly LayerService          _layerService;
-        private readonly LevelService          _levelService;
-        private readonly HintService           _hintService;
-        private readonly BoostService          _boostService;
-        private readonly InventoryService      _inventoryService;
-        private readonly BoardPresenter        _boardPresenter;
-        private readonly LayerPresenter        _layerPresenter;
-        private readonly BoardInputHandler     _inputHandler;
-        private readonly LevelConfigRepository _levelRepository;
+        private readonly BoardService     _boardService;
+        private readonly SwapService      _swapService;
+        private readonly LayerService     _layerService;
+        private readonly LevelService     _levelService;
+        private readonly HintService      _hintService;
+        private readonly BoostService     _boostService;
+        private readonly InventoryService _inventoryService;
+        private readonly BoardPresenter   _boardPresenter;
+        private readonly LayerPresenter   _layerPresenter;
+        private readonly BoardInputHandler _inputHandler;
+
+        // Источник текущего уровня — карта + прогресс
+        private readonly WorldMapConfig  _worldMapConfig;
+        private readonly ProgressService _progressService;
 
         private readonly CompositeDisposable     _disposables = new();
         private readonly CancellationTokenSource _cts         = new();
@@ -44,17 +48,18 @@ namespace Match3.Controllers
 
         [Inject]
         public GameLoopController(
-            BoardService          boardService,
-            SwapService           swapService,
-            LayerService          layerService,
-            LevelService          levelService,
-            HintService           hintService,
-            BoostService          boostService,
-            InventoryService      inventoryService,
-            BoardPresenter        boardPresenter,
-            LayerPresenter        layerPresenter,
-            BoardInputHandler     inputHandler,
-            LevelConfigRepository levelRepository)
+            BoardService      boardService,
+            SwapService       swapService,
+            LayerService      layerService,
+            LevelService      levelService,
+            HintService       hintService,
+            BoostService      boostService,
+            InventoryService  inventoryService,
+            BoardPresenter    boardPresenter,
+            LayerPresenter    layerPresenter,
+            BoardInputHandler inputHandler,
+            WorldMapConfig    worldMapConfig,
+            ProgressService   progressService)
         {
             _boardService     = boardService;
             _swapService      = swapService;
@@ -66,17 +71,22 @@ namespace Match3.Controllers
             _boardPresenter   = boardPresenter;
             _layerPresenter   = layerPresenter;
             _inputHandler     = inputHandler;
-            _levelRepository  = levelRepository;
+            _worldMapConfig   = worldMapConfig;
+            _progressService  = progressService;
         }
 
         // ── IInitializable ───────────────────────────────────────────────────
 
         void IInitializable.Initialize()
         {
-            var config = _levelRepository.First
-                ?? throw new InvalidOperationException("No level config found");
+            var config = ResolveCurrentLevelConfig();
+            if (config == null)
+            {
+                Debug.LogError("[GameLoop] LevelConfig не найден — проверь CurrentAddress в ProgressService");
+                return;
+            }
 
-            // ⚠️ Временно — удалить когда появится реальный источник наград
+            // ⚠️ Временно — удалить когда появится реальная выдача наград
             _inventoryService.AddDebugStarterPack();
 
             _levelService.StartLevel(config);
@@ -93,32 +103,57 @@ namespace Match3.Controllers
                 .Subscribe(swap => HandleSwapAsync(swap.from, swap.to, _cts.Token).Forget())
                 .AddTo(_disposables);
 
-            // Подсказка из BoostService
             _boostService.OnHintApplied
                 .Subscribe(hint => ShowHint(hint.from, hint.to))
                 .AddTo(_disposables);
 
-            // Shuffle из BoostService
             _boostService.OnShuffleApplied
                 .Subscribe(_ => ShuffleBoardAsync(_cts.Token).Forget())
                 .AddTo(_disposables);
 
-            // Буст применён на ячейку → применяем супер-фишку
             _boostService.OnBoostApplied
                 .Subscribe(data => ApplyBoostAtAsync(data.boost, data.pos, _cts.Token).Forget())
                 .AddTo(_disposables);
 
             _inputHandler.SetInputEnabled(true);
-            Debug.LogWarning("[GameLoop] Инициализирован. Доска готова.");
+
+            var address = _progressService.CurrentAddress.CurrentValue;
+            Debug.LogWarning($"[GameLoop] Старт уровня: страна={address.CountryIndex} " +
+                             $"этап={address.StageIndex} уровень={address.LevelIndex}");
         }
 
-        // ── Input ────────────────────────────────────────────────────────────
+        // ── Загрузка конфига уровня ───────────────────────────────────────────
+
+        /// <summary>
+        /// Берёт адрес из ProgressService и находит LevelConfig через WorldMapConfig.
+        /// </summary>
+        private LevelConfig? ResolveCurrentLevelConfig()
+        {
+            var address = _progressService.CurrentAddress.CurrentValue;
+
+            var stage = _worldMapConfig.GetStage(address.CountryIndex, address.StageIndex);
+            if (stage == null)
+            {
+                Debug.LogError($"[GameLoop] Stage не найден: country={address.CountryIndex} " +
+                               $"stage={address.StageIndex}");
+                return null;
+            }
+
+            var config = stage.GetLevel(address.LevelIndex);
+            if (config == null)
+            {
+                Debug.LogError($"[GameLoop] LevelConfig не найден: level={address.LevelIndex} " +
+                               $"в stage={stage.StageName}");
+                return null;
+            }
+
+            return config;
+        }
+
+        // ── Input ─────────────────────────────────────────────────────────────
 
         private void OnCellClicked(Vector2Int pos)
         {
-            Debug.LogWarning($"[GameLoop] Клик по ячейке: {pos}");
-
-            // Если активен буст-суперфишка — применяем буст, не делаем своп
             if (_boostService.HasActiveBoost)
             {
                 _boostService.TryApplyBoostAt(pos);
@@ -129,26 +164,20 @@ namespace Match3.Controllers
             _swapService.TrySelect(pos);
         }
 
-        // ── Boost применение ─────────────────────────────────────────────────
+        // ── Boost ─────────────────────────────────────────────────────────────
 
         private async UniTaskVoid ApplyBoostAtAsync(BoostType boost, Vector2Int pos, CancellationToken ct)
         {
-            if (!_boardService.IsNormalCell(pos))
-            {
-                Debug.LogWarning($"[GameLoop] ApplyBoost: {pos} не нормальная ячейка");
-                return;
-            }
+            if (!_boardService.IsNormalCell(pos)) return;
 
-            Debug.LogWarning($"[GameLoop] ApplyBoost: {boost} в {pos}");
             _swapService.Lock();
             _inputHandler.SetInputEnabled(false);
 
             try
             {
-                var superType = BoostTypeToSuperGemType(boost);
-                var gem       = _boardService.GetGem(pos);
-                var nodeType  = gem?.GemType ?? NodeType.Red;
-
+                var superType      = BoostTypeToSuperGemType(boost);
+                var gem            = _boardService.GetGem(pos);
+                var nodeType       = gem?.GemType ?? NodeType.Red;
                 var explosionCells = GetExplosionCells(pos, superType, nodeType);
 
                 if (explosionCells.Count > 0)
@@ -163,8 +192,7 @@ namespace Match3.Controllers
                     if (spawnList.Count > 0)
                         await _boardPresenter.AnimateSpawnAsync(spawnList, ct);
 
-                    var allCells = CollectAllNormalCells();
-                    var matches  = _boardService.FindAndCreateMatches(allCells);
+                    var matches = _boardService.FindAndCreateMatches(CollectAllNormalCells());
                     if (matches.Count > 0)
                     {
                         _levelService.UseMove();
@@ -174,10 +202,7 @@ namespace Match3.Controllers
                 }
             }
             catch (OperationCanceledException) { }
-            catch (Exception e)
-            {
-                Debug.LogError($"[GameLoop] ApplyBoost exception: {e.Message}");
-            }
+            catch (Exception e) { Debug.LogError($"[GameLoop] ApplyBoost: {e.Message}"); }
             finally
             {
                 _swapService.Unlock();
@@ -195,7 +220,7 @@ namespace Match3.Controllers
             _                         => SuperGemType.None,
         };
 
-        // ── Подсказка ────────────────────────────────────────────────────────
+        // ── Hint / Shuffle ────────────────────────────────────────────────────
 
         private void ShowHint(Vector2Int from, Vector2Int to)
         {
@@ -204,18 +229,14 @@ namespace Match3.Controllers
             _hintGemB = _boardService.GetGem(to)   as GemView;
             _hintGemA?.PlayHint();
             _hintGemB?.PlayHint();
-            Debug.LogWarning($"[GameLoop] Подсказка: {from} ↔ {to}");
         }
 
         private void ClearHint()
         {
             _hintGemA?.StopHint();
             _hintGemB?.StopHint();
-            _hintGemA = null;
-            _hintGemB = null;
+            _hintGemA = _hintGemB = null;
         }
-
-        // ── Shuffle ──────────────────────────────────────────────────────────
 
         private async UniTaskVoid ShuffleBoardAsync(CancellationToken ct)
         {
@@ -230,10 +251,7 @@ namespace Match3.Controllers
                     await _boardPresenter.AnimateShuffleAsync(newLayout, ct);
             }
             catch (OperationCanceledException) { }
-            catch (Exception e)
-            {
-                Debug.LogError($"[GameLoop] Shuffle exception: {e.Message}");
-            }
+            catch (Exception e) { Debug.LogError($"[GameLoop] Shuffle: {e.Message}"); }
             finally
             {
                 _swapService.Unlock();
@@ -241,11 +259,10 @@ namespace Match3.Controllers
             }
         }
 
-        // ── Swap flow ────────────────────────────────────────────────────────
+        // ── Swap ──────────────────────────────────────────────────────────────
 
         private async UniTaskVoid HandleSwapAsync(Vector2Int from, Vector2Int to, CancellationToken ct)
         {
-            Debug.LogWarning($"[GameLoop] HandleSwap {from} → {to}");
             _swapService.Lock();
             _inputHandler.SetInputEnabled(false);
             ClearHint();
@@ -254,7 +271,6 @@ namespace Match3.Controllers
             {
                 var gemFrom = _boardService.GetGem(from);
                 var gemTo   = _boardService.GetGem(to);
-
                 if (gemFrom == null || gemTo == null) return;
 
                 _boardService.ExchangeGems(from, to);
@@ -264,15 +280,12 @@ namespace Match3.Controllers
                 _boardService.LockCell(to,   false);
 
                 var matches = _boardService.FindAndCreateMatches(new[] { from, to });
-                Debug.LogWarning($"[GameLoop] Матчей: {matches.Count}");
 
                 if (matches.Count == 0)
                 {
-                    var retFrom = _boardService.GetGem(from)!;
-                    var retTo   = _boardService.GetGem(to)!;
                     _boardService.ExchangeGems(from, to);
-                    await _boardPresenter.AnimateReturnSwapAsync(from, to, retFrom, retTo, ct);
-                    Debug.LogWarning("[GameLoop] Матча нет — отмена");
+                    await _boardPresenter.AnimateReturnSwapAsync(
+                        from, to, _boardService.GetGem(from)!, _boardService.GetGem(to)!, ct);
                     return;
                 }
 
@@ -281,19 +294,15 @@ namespace Match3.Controllers
                 _levelService.ProcessTurnResult();
             }
             catch (OperationCanceledException) { }
-            catch (Exception e)
-            {
-                Debug.LogError($"[GameLoop] HandleSwap exception: {e}");
-            }
+            catch (Exception e) { Debug.LogError($"[GameLoop] HandleSwap: {e}"); }
             finally
             {
                 _swapService.Unlock();
                 _inputHandler.SetInputEnabled(true);
-                Debug.LogWarning("[GameLoop] HandleSwap завершён");
             }
         }
 
-        // ── Resolve loop ─────────────────────────────────────────────────────
+        // ── Resolve loop ──────────────────────────────────────────────────────
 
         private async UniTask ResolveAsync(List<GemMatch> matches, CancellationToken ct)
         {
@@ -307,15 +316,15 @@ namespace Match3.Controllers
                 }
 
                 var explosionCells = CollectExplosionCells(matches);
-                var destroyTasks   = new List<UniTask>(matches.Count + 1);
+                var tasks          = new List<UniTask>(matches.Count + 1);
 
                 foreach (var match in matches)
-                    destroyTasks.Add(_boardPresenter.AnimateDestroyMatchAsync(match, ct));
+                    tasks.Add(_boardPresenter.AnimateDestroyMatchAsync(match, ct));
 
                 if (explosionCells.Count > 0)
-                    destroyTasks.Add(_boardPresenter.AnimateDestroyCellsAsync(explosionCells, ct));
+                    tasks.Add(_boardPresenter.AnimateDestroyCellsAsync(explosionCells, ct));
 
-                await UniTask.WhenAll(destroyTasks).AttachExternalCancellation(ct);
+                await UniTask.WhenAll(tasks).AttachExternalCancellation(ct);
 
                 SpawnSuperGems(matches);
 
@@ -327,24 +336,22 @@ namespace Match3.Controllers
                 if (spawnList.Count > 0)
                     await _boardPresenter.AnimateSpawnAsync(spawnList, ct);
 
-                var allCells = CollectAllNormalCells();
-                matches = _boardService.FindAndCreateMatches(allCells);
-                Debug.LogWarning($"[GameLoop] Каскад: {matches.Count}");
+                matches = _boardService.FindAndCreateMatches(CollectAllNormalCells());
             }
         }
 
-        // ── Super gem helpers ────────────────────────────────────────────────
+        // ── Super gem helpers ─────────────────────────────────────────────────
 
         private List<Vector2Int> CollectExplosionCells(List<GemMatch> matches)
         {
             var inMatch = new HashSet<Vector2Int>();
-            foreach (var match in matches)
-                foreach (var cell in match.MatchingCells)
+            foreach (var m in matches)
+                foreach (var cell in m.MatchingCells)
                     inMatch.Add(cell);
 
             var result = new HashSet<Vector2Int>();
-            foreach (var match in matches)
-                foreach (var gem in match.MatchedGems)
+            foreach (var m in matches)
+                foreach (var gem in m.MatchedGems)
                 {
                     if (gem.SuperGemType == SuperGemType.None) continue;
                     foreach (var cell in GetExplosionCells(gem.CurrentIndex, gem.SuperGemType, gem.GemType))
@@ -373,8 +380,8 @@ namespace Match3.Controllers
                     for (var col = 0; col < _boardService.Columns; col++)
                     {
                         var cell = new Vector2Int(row, col);
-                        var gem  = _boardService.GetGem(cell);
-                        if (gem != null && gem.GemType == nodeType) cells.Add(cell);
+                        if (_boardService.GetGem(cell)?.GemType == nodeType)
+                            cells.Add(cell);
                     }
                     break;
                 case SuperGemType.Bomb:     AddSquareCells(pos, 1, cells); break;
@@ -419,7 +426,7 @@ namespace Match3.Controllers
             return result;
         }
 
-        // ── IDisposable ──────────────────────────────────────────────────────
+        // ── IDisposable ───────────────────────────────────────────────────────
 
         public void Dispose()
         {

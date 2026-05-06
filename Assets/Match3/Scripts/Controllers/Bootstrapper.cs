@@ -18,7 +18,7 @@ namespace Match3.Controllers
 
         public void Initialize()
         {
-            _sceneManagerService.LoadSceneAsync(SceneId.Game);
+            _sceneManagerService.LoadSceneAsync(SceneId.StageMap);
         }
     }
 }

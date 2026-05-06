@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3edbe9718fdab9c41b39afb9ce91a3fb, type: 3}
+  m_Name: Greece
+  m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.CountryConfig
+  <CountryName>k__BackingField: Greece
+  <CountryIcon>k__BackingField: {fileID: 0}
+  <LockedIcon>k__BackingField: {fileID: 0}
+  <SectionColor>k__BackingField: {r: 0.72, g: 0.83, b: 0.96, a: 1}
+  <Stages>k__BackingField:
+  - {fileID: 11400000, guid: efe39d882983a1b4fa2434e8fd7593a4, type: 2}
+  - {fileID: 11400000, guid: f8ab8bacb2fbd0c4da8fc705f26b2ac4, type: 2}
+  - {fileID: 11400000, guid: 69c72c48644b60347b3c8d0763b76416, type: 2}
+  - {fileID: 11400000, guid: d9954defb4076594c928735490006d95, type: 2}
+  - {fileID: 11400000, guid: 79cb10d1892ad0146a5956593a7a34ac, type: 2}
+  - {fileID: 11400000, guid: 3834537498a66c444a88fe3bdc9fa06f, type: 2}
+  - {fileID: 11400000, guid: 20639de7d8aa67b4f8ba9aa9edfd0626, type: 2}
+  - {fileID: 11400000, guid: 75b214a93f8d146458841c7b198e9a99, type: 2}
+  - {fileID: 11400000, guid: 11a31abe164d905449cafe6aa8f4bee1, type: 2}
