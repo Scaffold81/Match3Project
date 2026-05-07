@@ -128,6 +128,80 @@ StageMapView Inspector:
 
 ---
 
+## 🎮 Игровой цикл (Game Scene) ✅ РЕАЛИЗОВАНО
+
+### Поток внутри Game-сцены
+```
+GameLoopController.Initialize()
+  → Подготовка доски (без включения ввода)
+
+GameFlowService.Initialize()
+  → Показать LevelTaskPopupView (задание уровня)
+  → Игрок нажимает Play
+  → GameLoopController.EnableInput() → игра началась
+
+Победа (LevelService.OnLevelWon):
+  → GameFlowService.HandleWin()
+  → SaveProgress()
+  → Последний уровень этапа?
+      ДА  → HandleStageComplete → StageRewardPopupView.Show() → Claim → LoadScene(StageMap)
+      НЕТ → HandleNextLevel → SetCurrentAddress(next) → LoadScene(Game)
+
+Поражение (LevelService.OnLevelLost):
+  → GameFlowService.HandleLose()
+  → LevelResultView.ShowLose()
+  → Restart → LoadScene(Game)
+  → Back to Map → LoadScene(StageMap)
+```
+
+### GameFlowService (SceneContext, IInitializable, IDisposable)
+```
+Оркестрирует весь игровой цикл внутри Game-сцены.
+
+Initialize():
+  Подписки на: OnLevelWon, OnLevelLost, OnRestartClicked,
+               OnBackToMapClicked, OnClaimClicked, OnPlayClicked
+  ShowCurrentLevelTask()
+
+HandleWin():
+  1. Проверяет wasStageCompleted ДО SaveProgress
+  2. SaveProgress() → StarCalculator.Calculate(movesLeft, moveLimit)
+  3. Последний уровень? → HandleStageComplete | HandleNextLevel
+
+HandleStageComplete(stage, grantRewards):
+  if grantRewards → RewardService.GrantAll(stage.StageRewards)
+  StageRewardPopupView.Show()
+
+HandleNextLevel(address):
+  ProgressService.SetCurrentAddress(next) → LoadScene(Game)
+```
+
+### LevelTaskPopupView (View, MonoBehaviour)
+```
+Show(stageName, levelIndex, objectives[])  — показывает задание уровня
+Hide()
+OnPlayClicked : Observable<Unit>
+
+Форматирует ObjectiveData[] в читаемый текст (визуализация — ответственность View).
+```
+
+### StageRewardPopupView (View, MonoBehaviour)
+```
+Show(stageName, rewards[])  — показывает награды за этап
+Hide()
+OnClaimClicked : Observable<Unit>
+```
+
+### LevelResultView (View, MonoBehaviour) — только поражение
+```
+ShowLose()   — показывает панель поражения
+Hide()
+OnRestartClicked   : Observable<Unit>
+OnBackToMapClicked : Observable<Unit>
+```
+
+---
+
 ## 🎁 Система наград ✅ РЕАЛИЗОВАНО
 
 ### RewardData (Models)
@@ -135,9 +209,10 @@ StageMapView Inspector:
 struct RewardData { RewardType Type; BoostType Boost; int Amount; }
 ```
 
-### LevelConfig.Rewards[]
+### LevelConfig.Rewards[] и StageConfig.StageRewards[]
 ```
-Указываются прямо в конфиге уровня.
+LevelConfig.Rewards[]      — награды за отдельный уровень (TODO: пока не выдаются)
+StageConfig.StageRewards[] — выдаются через RewardService при первом завершении этапа
 Бонусный этап → ставь более ценные награды (редкие бусты, много монет).
 ```
 
@@ -150,14 +225,6 @@ OnRewardGranted           : Observable<RewardData>  ← Presenter слушает
   Boost → InventoryService.Add(boost, amount)
   Coins → заглушка (TODO: CoinService)
   Lives → заглушка (TODO: LivesService)
-
-Биндинг: BindInterfacesAndSelfTo<RewardService> — Zenject вызывает Dispose() автоматически
-```
-
-### Как вызывать
-```csharp
-// В LevelPresenter при победе:
-_rewardService.GrantAll(_levelConfig.Rewards);
 ```
 
 ---
@@ -222,8 +289,9 @@ Bootstrapper       — стартует с SceneId.StageMap
 ```
 BoardService, SwapService, LayerService, LevelService
 HintService, BoostService
-GemFactory         — создание GemView
-GameLoopController (IInitializable, IDisposable)
+GemFactory              — создание GemView
+GameLoopController      — подготовка доски (IInitializable #1, IDisposable)
+GameFlowService         — игровой цикл: попапы, прогресс, навигация (IInitializable #2, IDisposable)
 ```
 
 ---
@@ -232,7 +300,7 @@ GameLoopController (IInitializable, IDisposable)
 
 ```
 LevelConfig    — MoveLimit, AllowedNodeTypes[], Objectives[], Grid[], Rewards[]
-StageConfig    — StageName, StageIcon, IsBonusStage, SuperPrize, Levels[3]
+StageConfig    — StageName, StageIcon, IsBonusStage, SuperPrize, StageRewards[], Levels[3]
 CountryConfig  — CountryName, CountryIcon, SectionColor, Stages[10]
 WorldMapConfig — Countries[5]
 ```
@@ -254,7 +322,7 @@ Assets/Match3/Scripts/
 │   ├── StageConfig, WorldMapConfig, CountryConfig
 ├── Controllers/
 │   ├── Bootstrapper
-│   └── GameLoopController
+│   └── GameLoopController    ← EnableInput() вызывается GameFlowService
 ├── Services/
 │   ├── Board/          BoardService
 │   ├── Swap/           SwapService
@@ -262,18 +330,23 @@ Assets/Match3/Scripts/
 │   ├── Level/          LevelService  (содержит LevelState enum)
 │   ├── Factories/      GemFactory
 │   ├── HintService, BoostService
+│   ├── GameFlowService          ← оркестратор игрового цикла (SceneContext)
 │   ├── InventoryService, ProgressService, RewardService  ← ProjectContext
 │   └── StarCalculator
 ├── Views/
 │   ├── StageMapView, StageNodeView, CountryNodeView, LevelSelectPopupView
 │   ├── BoardView, GemView, LayerView
-│   ├── ObjectiveView, MoveCounterView, LevelResultView
+│   ├── ObjectiveView, MoveCounterView
+│   ├── LevelResultView          ← только Lose-панель (Restart + BackToMap)
+│   ├── LevelTaskPopupView       ← попап задания уровня (показывается перед игрой)
+│   ├── StageRewardPopupView     ← попап наград за этап (показывается после последнего уровня)
 │   ├── BackpackView, ActiveBoostView
 │   └── BoardInputHandler
 ├── Presenters/
 │   ├── StageMapPresenter
 │   ├── BoardPresenter, SwapPresenter, LayerPresenter
-│   ├── ObjectivePresenter, LevelPresenter
+│   ├── ObjectivePresenter
+│   ├── LevelPresenter           ← только HUD: ходы + цели
 │   └── BoostPresenter
 ├── Editor/
 │   ├── WorldMapConfigGenerator, StageMapUISetup, LevelEditorWindow
@@ -282,16 +355,19 @@ Assets/Match3/Scripts/
     ├── ProjectConfigInstaller
     ├── ProjectServiceInstaller
     ├── StageMapInstaller, StageMapViewInstaller
-    ├── SceneServiceInstaller, SceneViewInstaller, ScenePresenterInstaller
+    ├── SceneServiceInstaller    ← + GameFlowService (после GameLoopController)
+    ├── SceneViewInstaller       ← + LevelTaskPopupView, StageRewardPopupView
+    └── ScenePresenterInstaller
 ```
 
 ---
 
 ## 🔮 Не реализовано (следующие этапы)
-- **#6** Кнопки Рестарт/Следующий уровень не подключены в LevelPresenter
 - **#7** LevelState enum вынести из LevelService.cs в Core/Enums/
 - Препятствия: Ice, Box, Chain, HedgehogFish
-- UI попап наград (анимация вылета иконок)
+- UI анимации попапов (DOTween — вылет/исчезновение)
+- Анимация вылета иконок наград в StageRewardPopupView
+- LevelConfig.Rewards[] — пока не выдаются (только StageConfig.StageRewards)
 - CoinService + LivesService (заглушки в RewardService)
 - Комбо-свопы двух супер-фишек
 - Визуальные эффекты взрывов (частицы)

@@ -113,12 +113,19 @@ namespace Match3.Controllers
                 .Subscribe(data => ApplyBoostAtAsync(data.boost, data.pos, _cts.Token).Forget())
                 .AddTo(_disposables);
 
-            _inputHandler.SetInputEnabled(true);
+            // Ввод намеренно НЕ включается здесь.
+            // GameFlowService покажет попап задания и вызовет EnableInput() после закрытия.
+            _inputHandler.SetInputEnabled(false);
 
             var address = _progressService.CurrentAddress.CurrentValue;
-            Debug.LogWarning($"[GameLoop] Старт уровня: страна={address.CountryIndex} " +
+            Debug.LogWarning($"[GameLoop] Уровень подготовлен: страна={address.CountryIndex} " +
                              $"этап={address.StageIndex} уровень={address.LevelIndex}");
         }
+
+        /// <summary>
+        /// Разрешает ввод. Вызывается GameFlowService после закрытия попапа задания.
+        /// </summary>
+        public void EnableInput() => _inputHandler.SetInputEnabled(true);
 
         // ── Загрузка конфига уровня ───────────────────────────────────────────
 

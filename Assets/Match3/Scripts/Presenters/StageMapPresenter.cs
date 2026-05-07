@@ -106,13 +106,9 @@ namespace Match3.Presenters
                 return;
             }
 
-            var completedMask = new bool[3];
-            for (var l = 0; l < 3; l++)
-                completedMask[l] = _progressService.GetStars(node.countryIndex, node.stageIndex, l) > 0;
-
             _popupCountryIndex = node.countryIndex;
             _popupStageIndex   = node.stageIndex;
-            _popupLevelIndex   = stage.GetNextLevelIndex(completedMask);
+            _popupLevelIndex   = 0;
 
             // Цели = сумма по всем уровням этапа сгруппированная по NodeType
             var objectives     = AggregateStageObjectives(stage);
