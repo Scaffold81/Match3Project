@@ -14,16 +14,16 @@ namespace Match3.Editor
         private const float CellSize      = 52f;
         private const float CellSpacing   = 2f;
         private const float SidebarWidth  = 220f;
-        private const float ToolbarHeight = 32f;
 
         // ── Состояние ────────────────────────────────────────────────────
         private LevelConfig? _config;
         private SerializedObject? _so;
 
-        private NodeType  _paintNodeType = NodeType.Red;
-        private CellType  _paintCellType = CellType.Normal;
-        private bool      _paintHasLayer = false;
-        private PaintMode _paintMode     = PaintMode.Node;
+        private NodeType     _paintNodeType     = NodeType.Red;
+        private CellType     _paintCellType     = CellType.Normal;
+        private ObstacleType _paintObstacleType = ObstacleType.Ice;
+        private int          _paintObstacleHp   = 1;
+        private PaintMode    _paintMode         = PaintMode.Node;
 
         private Vector2 _gridScroll;
         private Vector2 _sidebarScroll;
@@ -31,7 +31,7 @@ namespace Match3.Editor
         private int _newRows    = 7;
         private int _newColumns = 7;
 
-        private enum PaintMode { Node, CellType, Layer }
+        private enum PaintMode { Node, CellType, Obstacle }
 
         // ── Открытие окна ────────────────────────────────────────────────
         [MenuItem("Match3/Level Editor")]
@@ -39,8 +39,7 @@ namespace Match3.Editor
             GetWindow<LevelEditorWindow>("Level Editor").minSize = new Vector2(700f, 500f);
 
         [MenuItem("Assets/Edit Level Config", true)]
-        private static bool CanOpenFromAsset() =>
-            Selection.activeObject is LevelConfig;
+        private static bool CanOpenFromAsset() => Selection.activeObject is LevelConfig;
 
         [MenuItem("Assets/Edit Level Config")]
         private static void OpenFromAsset()
@@ -83,8 +82,7 @@ namespace Match3.Editor
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 var newConfig = (LevelConfig?)EditorGUILayout.ObjectField(
-                    _config, typeof(LevelConfig), false,
-                    GUILayout.Width(200f));
+                    _config, typeof(LevelConfig), false, GUILayout.Width(200f));
 
                 if (newConfig != _config && newConfig != null)
                     LoadConfig(newConfig);
@@ -98,15 +96,13 @@ namespace Match3.Editor
 
                 if (_config != null)
                 {
-                    // EditorStyles.toolbarLabel не существует — используем miniLabel
-                    var sizeStyle = new GUIStyle(EditorStyles.miniLabel)
-                    {
-                        alignment = TextAnchor.MiddleCenter,
-                        normal    = { textColor = new Color(0.8f, 0.8f, 0.8f) }
-                    };
                     EditorGUILayout.LabelField(
                         $"{_config.Rows}x{_config.Columns}",
-                        sizeStyle,
+                        new GUIStyle(EditorStyles.miniLabel)
+                        {
+                            alignment = TextAnchor.MiddleCenter,
+                            normal    = { textColor = new Color(0.8f, 0.8f, 0.8f) }
+                        },
                         GUILayout.Width(60f));
                 }
             }
@@ -124,9 +120,7 @@ namespace Match3.Editor
             var totalH = _config.Rows    * (CellSize + CellSpacing);
 
             using var scroll = new EditorGUILayout.ScrollViewScope(
-                _gridScroll,
-                GUILayout.ExpandWidth(true),
-                GUILayout.ExpandHeight(true));
+                _gridScroll, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             _gridScroll = scroll.scrollPosition;
 
             var startRect = GUILayoutUtility.GetRect(totalW, totalH);
@@ -141,17 +135,18 @@ namespace Match3.Editor
                 {
                     if (col >= cellsProp.arraySize) continue;
 
-                    var cellProp     = cellsProp.GetArrayElementAtIndex(col);
-                    var cellTypeProp = cellProp.FindPropertyRelative(nameof(CellData.cellType));
-                    var nodeTypeProp = cellProp.FindPropertyRelative(nameof(CellData.nodeType));
-                    var hasLayerProp = cellProp.FindPropertyRelative(nameof(CellData.hasLayer));
+                    var cellProp         = cellsProp.GetArrayElementAtIndex(col);
+                    var cellTypeProp     = cellProp.FindPropertyRelative(nameof(CellData.cellType));
+                    var nodeTypeProp     = cellProp.FindPropertyRelative(nameof(CellData.nodeType));
+                    var obstacleTypeProp = cellProp.FindPropertyRelative(nameof(CellData.obstacleType));
+                    var obstacleHpProp   = cellProp.FindPropertyRelative(nameof(CellData.obstacleHp));
 
                     var cellRect = new Rect(
                         startRect.x + col * (CellSize + CellSpacing),
                         startRect.y + row * (CellSize + CellSpacing),
                         CellSize, CellSize);
 
-                    DrawCell(cellRect, cellTypeProp, nodeTypeProp, hasLayerProp);
+                    DrawCell(cellRect, cellTypeProp, nodeTypeProp, obstacleTypeProp, obstacleHpProp);
                 }
             }
         }
@@ -160,22 +155,25 @@ namespace Match3.Editor
             Rect rect,
             SerializedProperty cellTypeProp,
             SerializedProperty nodeTypeProp,
-            SerializedProperty hasLayerProp)
+            SerializedProperty obstacleTypeProp,
+            SerializedProperty obstacleHpProp)
         {
-            var cellType = (CellType)cellTypeProp.enumValueIndex;
-            var nodeType = (NodeType)nodeTypeProp.enumValueIndex;
-            var hasLayer = hasLayerProp.boolValue;
+            var cellType     = (CellType)cellTypeProp.enumValueIndex;
+            var nodeType     = (NodeType)nodeTypeProp.enumValueIndex;
+            var obstacleType = (ObstacleType)obstacleTypeProp.enumValueIndex;
+            var hasObstacle  = obstacleType != ObstacleType.None;
 
+            // Фон
             var bgColor = cellType == CellType.Hidden
                 ? new Color(0.15f, 0.15f, 0.15f)
                 : CellDataDrawer.GetNodeColor(nodeType);
             EditorGUI.DrawRect(rect, bgColor);
 
-            var borderColor = hasLayer
-                ? new Color(1f, 0.85f, 0f)
-                : new Color(0f, 0f, 0f, 0.35f);
-            DrawBorder(rect, borderColor, hasLayer ? 3f : 1f);
+            // Рамка
+            var borderColor = CellDataDrawer.GetObstacleColor(obstacleType);
+            DrawBorder(rect, borderColor, hasObstacle ? 3f : 1f);
 
+            // Текст ячейки
             if (cellType == CellType.Hidden)
             {
                 EditorGUI.LabelField(rect, "X", new GUIStyle(EditorStyles.label)
@@ -197,24 +195,29 @@ namespace Match3.Editor
                 });
             }
 
-            if (hasLayer)
+            // Иконка препятствия + HP
+            if (hasObstacle)
             {
-                EditorGUI.DrawRect(
-                    new Rect(rect.xMax - 10f, rect.y + 2f, 8f, 8f),
-                    new Color(1f, 0.85f, 0f));
+                var iconRect = new Rect(rect.xMax - 14f, rect.y + 2f, 12f, 12f);
+                EditorGUI.DrawRect(iconRect, CellDataDrawer.GetObstacleColor(obstacleType));
+
+                var hp     = obstacleHpProp.intValue;
+                var letter = hp > 0 ? hp.ToString() : obstacleType.ToString()[..1];
+                EditorGUI.LabelField(iconRect, letter, new GUIStyle(EditorStyles.label)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    fontSize  = 8,
+                    fontStyle = FontStyle.Bold,
+                    normal    = { textColor = Color.white }
+                });
             }
 
+            // Ввод
             var e = Event.current;
-            if (e.type == EventType.MouseDown && rect.Contains(e.mousePosition))
+            if ((e.type == EventType.MouseDown || e.type == EventType.MouseDrag)
+                && rect.Contains(e.mousePosition))
             {
-                ApplyPaint(cellTypeProp, nodeTypeProp, hasLayerProp, e.button);
-                e.Use();
-                GUI.changed = true;
-            }
-
-            if (e.type == EventType.MouseDrag && rect.Contains(e.mousePosition))
-            {
-                ApplyPaint(cellTypeProp, nodeTypeProp, hasLayerProp, e.button);
+                ApplyPaint(cellTypeProp, nodeTypeProp, obstacleTypeProp, obstacleHpProp, e.button);
                 e.Use();
                 GUI.changed = true;
             }
@@ -223,7 +226,8 @@ namespace Match3.Editor
         private void ApplyPaint(
             SerializedProperty cellTypeProp,
             SerializedProperty nodeTypeProp,
-            SerializedProperty hasLayerProp,
+            SerializedProperty obstacleTypeProp,
+            SerializedProperty obstacleHpProp,
             int mouseButton)
         {
             switch (_paintMode)
@@ -234,7 +238,7 @@ namespace Match3.Editor
                         cellTypeProp.enumValueIndex = (int)CellType.Normal;
                         nodeTypeProp.enumValueIndex = (int)_paintNodeType;
                     }
-                    else if (mouseButton == 1)
+                    else
                     {
                         cellTypeProp.enumValueIndex = (int)CellType.Normal;
                         nodeTypeProp.enumValueIndex = (int)NodeType.None;
@@ -247,8 +251,17 @@ namespace Match3.Editor
                         : (int)CellType.Normal;
                     break;
 
-                case PaintMode.Layer:
-                    hasLayerProp.boolValue = mouseButton == 0;
+                case PaintMode.Obstacle:
+                    if (mouseButton == 0)
+                    {
+                        obstacleTypeProp.enumValueIndex = (int)_paintObstacleType;
+                        obstacleHpProp.intValue         = _paintObstacleHp;
+                    }
+                    else
+                    {
+                        obstacleTypeProp.enumValueIndex = (int)ObstacleType.None;
+                        obstacleHpProp.intValue         = 0;
+                    }
                     break;
             }
         }
@@ -267,7 +280,7 @@ namespace Match3.Editor
             EditorGUILayout.LabelField("Paint Mode", EditorStyles.boldLabel);
             _paintMode = (PaintMode)GUILayout.SelectionGrid(
                 (int)_paintMode,
-                new[] { "Node", "Cell Type", "Layer" },
+                new[] { "Node", "Cell Type", "Obstacle" },
                 3);
 
             EditorGUILayout.Space(8f);
@@ -276,17 +289,16 @@ namespace Match3.Editor
             {
                 case PaintMode.Node:     DrawNodePalette();     break;
                 case PaintMode.CellType: DrawCellTypePalette(); break;
-                case PaintMode.Layer:    DrawLayerPalette();    break;
+                case PaintMode.Obstacle: DrawObstaclePalette(); break;
             }
 
             EditorGUILayout.Space(12f);
             DrawDivider();
 
+            // Размер сетки
             EditorGUILayout.LabelField("Grid Size", EditorStyles.boldLabel);
-            _newRows    = EditorGUILayout.IntField("Rows",    _newRows);
-            _newColumns = EditorGUILayout.IntField("Columns", _newColumns);
-            _newRows    = Mathf.Clamp(_newRows,    1, 20);
-            _newColumns = Mathf.Clamp(_newColumns, 1, 20);
+            _newRows    = Mathf.Clamp(EditorGUILayout.IntField("Rows",    _newRows),    1, 20);
+            _newColumns = Mathf.Clamp(EditorGUILayout.IntField("Columns", _newColumns), 1, 20);
 
             if (GUILayout.Button("Resize Grid"))
                 ResizeGrid(_newRows, _newColumns);
@@ -294,6 +306,7 @@ namespace Match3.Editor
             EditorGUILayout.Space(12f);
             DrawDivider();
 
+            // Настройки уровня
             EditorGUILayout.LabelField("Level Settings", EditorStyles.boldLabel);
 
             var moveLimitProp = _so.FindProperty("<MoveLimit>k__BackingField");
@@ -316,18 +329,16 @@ namespace Match3.Editor
             DrawDivider();
 
             EditorGUILayout.LabelField("Utilities", EditorStyles.boldLabel);
-
-            if (GUILayout.Button("Fill All - Random"))   FillAll(CellType.Normal, NodeType.None);
-            if (GUILayout.Button("Clear All - Hidden"))  FillAll(CellType.Hidden, NodeType.None);
-            if (GUILayout.Button("Remove All Layers"))   SetAllLayers(false);
-            if (GUILayout.Button("Fill All Layers"))     SetAllLayers(true);
+            if (GUILayout.Button("Fill All — Random"))    FillAll(CellType.Normal, NodeType.None);
+            if (GUILayout.Button("Clear All — Hidden"))   FillAll(CellType.Hidden, NodeType.None);
+            if (GUILayout.Button("Clear All Obstacles"))  ClearAllObstacles();
         }
 
         private void DrawNodePalette()
         {
             EditorGUILayout.LabelField("Node Type", EditorStyles.miniLabel);
 
-            var row = 0;
+            var col = 0;
             EditorGUILayout.BeginHorizontal();
 
             foreach (NodeType nt in System.Enum.GetValues(typeof(NodeType)))
@@ -341,8 +352,8 @@ namespace Match3.Editor
                     GUILayout.Width(58f), GUILayout.Height(40f)))
                     _paintNodeType = nt;
 
-                row++;
-                if (row % 3 == 0)
+                col++;
+                if (col % 3 == 0)
                 {
                     EditorGUILayout.EndHorizontal();
                     EditorGUILayout.BeginHorizontal();
@@ -351,7 +362,7 @@ namespace Match3.Editor
 
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.Space(4f);
-            EditorGUILayout.HelpBox("LMB = paint node\nRMB = reset to Random", MessageType.None);
+            EditorGUILayout.HelpBox("LMB = рисовать\nRMB = сброс (NodeType.None)", MessageType.None);
         }
 
         private void DrawCellTypePalette()
@@ -373,13 +384,32 @@ namespace Match3.Editor
                 }
             }
 
-            EditorGUILayout.HelpBox("LMB = paint type\nRMB = set Normal", MessageType.None);
+            EditorGUILayout.HelpBox("LMB = рисовать\nRMB = сброс (Normal)", MessageType.None);
         }
 
-        private void DrawLayerPalette()
+        private void DrawObstaclePalette()
         {
-            EditorGUILayout.LabelField("Layer Paint", EditorStyles.miniLabel);
-            EditorGUILayout.HelpBox("LMB = add layer\nRMB = remove layer\nGold border = has layer", MessageType.None);
+            EditorGUILayout.LabelField("Obstacle Type", EditorStyles.miniLabel);
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                foreach (ObstacleType ot in System.Enum.GetValues(typeof(ObstacleType)))
+                {
+                    if (ot == ObstacleType.None) continue;
+
+                    var isSelected = _paintObstacleType == ot;
+                    var color      = CellDataDrawer.GetObstacleColor(ot);
+
+                    if (GUILayout.Button(ot.ToString(), MakeColoredButton(color, isSelected),
+                        GUILayout.Height(36f)))
+                        _paintObstacleType = ot;
+                }
+            }
+
+            EditorGUILayout.Space(6f);
+            _paintObstacleHp = EditorGUILayout.IntSlider("HP", _paintObstacleHp, 1, 4);
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.HelpBox("LMB = поставить препятствие\nRMB = убрать препятствие", MessageType.None);
         }
 
         // ── Grid operations ──────────────────────────────────────────────
@@ -405,9 +435,10 @@ namespace Match3.Editor
                 for (var c = oldCols; c < cols; c++)
                 {
                     var cell = cellsProp.GetArrayElementAtIndex(c);
-                    cell.FindPropertyRelative(nameof(CellData.cellType))!.enumValueIndex = (int)CellType.Normal;
-                    cell.FindPropertyRelative(nameof(CellData.nodeType))!.enumValueIndex = (int)NodeType.None;
-                    cell.FindPropertyRelative(nameof(CellData.hasLayer))!.boolValue      = false;
+                    cell.FindPropertyRelative(nameof(CellData.cellType))!    .enumValueIndex = (int)CellType.Normal;
+                    cell.FindPropertyRelative(nameof(CellData.nodeType))!    .enumValueIndex = (int)NodeType.None;
+                    cell.FindPropertyRelative(nameof(CellData.obstacleType))!.enumValueIndex = (int)ObstacleType.None;
+                    cell.FindPropertyRelative(nameof(CellData.obstacleHp))!  .intValue       = 0;
                 }
             }
 
@@ -442,7 +473,7 @@ namespace Match3.Editor
             EditorUtility.SetDirty(_config);
         }
 
-        private void SetAllLayers(bool value)
+        private void ClearAllObstacles()
         {
             if (_so == null || _config == null) return;
 
@@ -459,10 +490,9 @@ namespace Match3.Editor
 
                 for (var c = 0; c < cellsProp.arraySize; c++)
                 {
-                    cellsProp
-                        .GetArrayElementAtIndex(c)
-                        .FindPropertyRelative(nameof(CellData.hasLayer))!
-                        .boolValue = value;
+                    var cell = cellsProp.GetArrayElementAtIndex(c);
+                    cell.FindPropertyRelative(nameof(CellData.obstacleType))!.enumValueIndex = (int)ObstacleType.None;
+                    cell.FindPropertyRelative(nameof(CellData.obstacleHp))!  .intValue       = 0;
                 }
             }
 
@@ -484,7 +514,7 @@ namespace Match3.Editor
         {
             var path = EditorUtility.SaveFilePanelInProject(
                 "New Level Config", "Level_01", "asset",
-                "Choose location",  "Assets/Match3/Configs/Levels");
+                "Choose location", "Assets/Match3/Configs/Levels");
 
             if (string.IsNullOrEmpty(path)) return;
 
@@ -533,9 +563,7 @@ namespace Match3.Editor
             style.active.background = tex;
             style.normal.textColor  = Color.white;
             style.fontStyle         = selected ? FontStyle.Bold : FontStyle.Normal;
-            style.border            = selected
-                ? new RectOffset(3, 3, 3, 3)
-                : new RectOffset(1, 1, 1, 1);
+            style.border            = selected ? new RectOffset(3, 3, 3, 3) : new RectOffset(1, 1, 1, 1);
             return style;
         }
 

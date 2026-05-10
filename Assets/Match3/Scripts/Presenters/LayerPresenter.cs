@@ -51,6 +51,9 @@ namespace Match3.Presenters
 
         public void RenderLayers(int rows, int cols)
         {
+            // Синхронизируем LayerContainer c GemContainer чтобы позиции препятствий
+            // совпадали с позициями гемов
+            _layerView.AlignToContainer(_boardView.GemContainer);
             _layerView.ClearAll();
 
             foreach (var (pos, type, hp, maxHp) in _boardService.GetObstacles())

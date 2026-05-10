@@ -10,15 +10,32 @@ using UnityEngine.UI;
 namespace Match3.Views
 {
     /// <summary>
-    /// Отвечает за отображение препятствий (Ice, Box, Chain) на доске.
-    /// Визуал берётся из GemConfig.Obstacles. Если спрайт не задан — используется FallbackColor.
+    /// Отвечает за отображение препятствий (Ice, Box, Chain, Rock) на доске.
+    /// Создаёт GameObject с Image программно — отдельный префаб не нужен.
+    /// Визуал берётся из GemConfig.Obstacles; если спрайт не задан — FallbackColor.
     /// </summary>
     public sealed class LayerView : MonoBehaviour
     {
-        [SerializeField] private RectTransform _layerContainer  = null!;
-        [SerializeField] private GameObject    _layerCellPrefab = null!;
+        [SerializeField] private RectTransform _layerContainer = null!;
 
         private readonly Dictionary<Vector2Int, (GameObject go, Image img)> _cells = new();
+
+        // ── Инициализация контейнера ──────────────────────────────────────
+
+        /// <summary>
+        /// Приводит LayerContainer к тем же настройкам что GemContainer.
+        /// Вызывать из LayerPresenter.RenderLayers до спавна препятствий.
+        /// </summary>
+        public void AlignToContainer(RectTransform reference)
+        {
+            if (_layerContainer == null || reference == null) return;
+
+            _layerContainer.anchorMin        = reference.anchorMin;
+            _layerContainer.anchorMax        = reference.anchorMax;
+            _layerContainer.pivot            = reference.pivot;
+            _layerContainer.anchoredPosition = reference.anchoredPosition;
+            _layerContainer.sizeDelta        = reference.sizeDelta;
+        }
 
         // ── Спавн ────────────────────────────────────────────────────────────
 
@@ -30,11 +47,18 @@ namespace Match3.Views
             Vector2            anchoredPosition,
             float              cellSize)
         {
-            var go  = Instantiate(_layerCellPrefab, _layerContainer);
+            if (_layerContainer == null)
+            {
+                Debug.LogError("[LayerView] LayerContainer не назначен в Inspector");
+                return;
+            }
+
+            // Создаём UI-объект без префаба
+            var go  = new GameObject($"Obstacle_{pos.x}_{pos.y}", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(_layerContainer, worldPositionStays: false);
+
             var rt  = go.GetComponent<RectTransform>();
             var img = go.GetComponent<Image>();
-
-            if (img == null) img = go.AddComponent<Image>();
 
             rt.pivot            = new Vector2(0f, 1f);
             rt.anchorMin        = new Vector2(0f, 1f);
@@ -54,11 +78,15 @@ namespace Match3.Views
 
             var sprite = visual.GetSprite(newHp, maxHp);
             if (sprite != null)
+            {
                 entry.img.sprite = sprite;
+            }
             else
+            {
                 entry.img.DOColor(visual.FallbackColor, 0.12f)
                     .SetEase(Ease.OutFlash)
                     .SetLink(entry.go);
+            }
 
             entry.go.GetComponent<RectTransform>()
                 .DOShakeScale(0.2f, 0.12f, 10, 90f)
