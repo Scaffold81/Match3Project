@@ -974,6 +974,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6698199288753270093}
     m_Modifications:
+    - target: {fileID: 1788577151934843621, guid: 1e5cbe67a9d04e84e846012471a2cde5, type: 3}
+      propertyPath: m_BlocksRaycasts
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6291125046681099675, guid: 1e5cbe67a9d04e84e846012471a2cde5, type: 3}
       propertyPath: m_Name
       value: LevelRewardPopup

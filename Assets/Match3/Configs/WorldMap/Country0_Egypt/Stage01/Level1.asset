@@ -16,9 +16,9 @@ MonoBehaviour:
   <AllowedNodeTypes>k__BackingField: 01000000020000000300000004000000
   <Objectives>k__BackingField:
   - nodeType: 1
-    count: 15
+    count: 50
   - nodeType: 2
-    count: 15
+    count: 50
   <Grid>k__BackingField:
   - <Cells>k__BackingField:
     - cellType: 0

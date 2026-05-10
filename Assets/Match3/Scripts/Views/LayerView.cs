@@ -2,21 +2,39 @@
 
 using System.Collections.Generic;
 using DG.Tweening;
+using Match3.Configs;
+using Match3.Core.Enums;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Match3.Views
 {
+    /// <summary>
+    /// Отвечает за отображение препятствий (Ice, Box, Chain) на доске.
+    /// Визуал берётся из GemConfig.Obstacles. Если спрайт не задан — используется FallbackColor.
+    /// </summary>
     public sealed class LayerView : MonoBehaviour
     {
-        [SerializeField] private RectTransform _layerContainer = null!;
+        [SerializeField] private RectTransform _layerContainer  = null!;
         [SerializeField] private GameObject    _layerCellPrefab = null!;
 
-        private readonly Dictionary<Vector2Int, GameObject> _layerCells = new();
+        private readonly Dictionary<Vector2Int, (GameObject go, Image img)> _cells = new();
 
-        public void SpawnLayerCell(Vector2Int cell, Vector2 anchoredPosition, float cellSize)
+        // ── Спавн ────────────────────────────────────────────────────────────
+
+        public void SpawnObstacleCell(
+            Vector2Int         pos,
+            int                hp,
+            int                maxHp,
+            ObstacleVisualData visual,
+            Vector2            anchoredPosition,
+            float              cellSize)
         {
-            var go = Instantiate(_layerCellPrefab, _layerContainer);
-            var rt = go.GetComponent<RectTransform>();
+            var go  = Instantiate(_layerCellPrefab, _layerContainer);
+            var rt  = go.GetComponent<RectTransform>();
+            var img = go.GetComponent<Image>();
+
+            if (img == null) img = go.AddComponent<Image>();
 
             rt.pivot            = new Vector2(0f, 1f);
             rt.anchorMin        = new Vector2(0f, 1f);
@@ -24,26 +42,64 @@ namespace Match3.Views
             rt.anchoredPosition = anchoredPosition;
             rt.sizeDelta        = new Vector2(cellSize, cellSize);
 
-            _layerCells[cell] = go;
+            ApplyVisual(img, visual, hp, maxHp);
+            _cells[pos] = (go, img);
         }
 
-        public void ClearLayerCell(Vector2Int cell)
-        {
-            if (!_layerCells.TryGetValue(cell, out var go)) return;
-            _layerCells.Remove(cell);
+        // ── Обновление HP ─────────────────────────────────────────────────────
 
-            go.GetComponent<RectTransform>()
+        public void UpdateCellHp(Vector2Int pos, int newHp, int maxHp, ObstacleVisualData visual)
+        {
+            if (!_cells.TryGetValue(pos, out var entry)) return;
+
+            var sprite = visual.GetSprite(newHp, maxHp);
+            if (sprite != null)
+                entry.img.sprite = sprite;
+            else
+                entry.img.DOColor(visual.FallbackColor, 0.12f)
+                    .SetEase(Ease.OutFlash)
+                    .SetLink(entry.go);
+
+            entry.go.GetComponent<RectTransform>()
+                .DOShakeScale(0.2f, 0.12f, 10, 90f)
+                .SetLink(entry.go);
+        }
+
+        // ── Очистка ───────────────────────────────────────────────────────────
+
+        public void ClearCell(Vector2Int pos)
+        {
+            if (!_cells.TryGetValue(pos, out var entry)) return;
+            _cells.Remove(pos);
+
+            entry.go.GetComponent<RectTransform>()
                 .DOScale(Vector3.zero, 0.2f)
                 .SetEase(Ease.InBack)
-                .SetLink(go)
-                .OnComplete(() => Destroy(go));
+                .SetLink(entry.go)
+                .OnComplete(() => Destroy(entry.go));
         }
 
         public void ClearAll()
         {
-            foreach (var go in _layerCells.Values)
-                if (go != null) Destroy(go);
-            _layerCells.Clear();
+            foreach (var entry in _cells.Values)
+                if (entry.go != null) Destroy(entry.go);
+            _cells.Clear();
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+
+        private static void ApplyVisual(Image img, ObstacleVisualData visual, int hp, int maxHp)
+        {
+            var sprite = visual.GetSprite(hp, maxHp);
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.color  = Color.white;
+            }
+            else
+            {
+                img.color = visual.FallbackColor;
+            }
         }
     }
 }

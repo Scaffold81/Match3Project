@@ -1,36 +1,51 @@
 #nullable enable
 
 using System;
-using Match3.Services.Layer;
+using Match3.Configs;
+using Match3.Core.Enums;
+using Match3.Services.Board;
 using Match3.Views;
 using R3;
+using UnityEngine;
 using Zenject;
 
 namespace Match3.Presenters
 {
     public sealed class LayerPresenter : IInitializable, IDisposable
     {
-        private readonly LayerService _layerService;
+        private readonly BoardService _boardService;
         private readonly LayerView    _layerView;
         private readonly BoardView    _boardView;
+        private readonly GemConfig    _gemConfig;
 
         private readonly CompositeDisposable _disposables = new();
 
         [Inject]
         public LayerPresenter(
-            LayerService layerService,
+            BoardService boardService,
             LayerView    layerView,
-            BoardView    boardView)
+            BoardView    boardView,
+            GemConfig    gemConfig)
         {
-            _layerService = layerService;
+            _boardService = boardService;
             _layerView    = layerView;
             _boardView    = boardView;
+            _gemConfig    = gemConfig;
         }
 
         public void Initialize()
         {
-            _layerService.OnLayerCleared
-                .Subscribe(cell => _layerView.ClearLayerCell(cell))
+            _boardService.OnObstacleHit
+                .Subscribe(data =>
+                {
+                    var visual = GetVisual(data.pos);
+                    if (visual != null)
+                        _layerView.UpdateCellHp(data.pos, data.newHp, data.maxHp, visual);
+                })
+                .AddTo(_disposables);
+
+            _boardService.OnObstacleCleared
+                .Subscribe(pos => _layerView.ClearCell(pos))
                 .AddTo(_disposables);
         }
 
@@ -38,16 +53,26 @@ namespace Match3.Presenters
         {
             _layerView.ClearAll();
 
-            for (var row = 0; row < rows; row++)
-            for (var col = 0; col < cols; col++)
+            foreach (var (pos, type, hp, maxHp) in _boardService.GetObstacles())
             {
-                if (!_layerService.HasLayer(row, col)) continue;
+                var visual = _gemConfig.GetObstacleVisual(type);
+                if (visual == null)
+                {
+                    Debug.LogWarning($"[LayerPresenter] Нет ObstacleVisualData для {type} в GemConfig");
+                    continue;
+                }
 
-                var anchoredPos = _boardView.GetAnchoredPosition(row, col);
-                _layerView.SpawnLayerCell(new UnityEngine.Vector2Int(row, col), anchoredPos, _boardView.CellSize);
+                var anchoredPos = _boardView.GetAnchoredPosition(pos.x, pos.y);
+                _layerView.SpawnObstacleCell(pos, hp, maxHp, visual, anchoredPos, _boardView.CellSize);
             }
         }
 
         public void Dispose() => _disposables.Dispose();
+
+        private ObstacleVisualData? GetVisual(Vector2Int pos)
+        {
+            if (!_boardService.Cells.TryGetValue(pos, out var cell)) return null;
+            return _gemConfig.GetObstacleVisual(cell.ObstacleType);
+        }
     }
 }

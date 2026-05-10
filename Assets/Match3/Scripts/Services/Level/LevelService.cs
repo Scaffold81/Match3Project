@@ -7,7 +7,6 @@ using Match3.Core;
 using Match3.Core.Enums;
 using Match3.Core.Models;
 using Match3.Services.Board;
-using Match3.Services.Layer;
 using R3;
 using Zenject;
 
@@ -18,7 +17,6 @@ namespace Match3.Services.Level
     public sealed class LevelService : IDisposable
     {
         private readonly BoardService _boardService;
-        private readonly LayerService _layerService;
 
         // ── Level ────────────────────────────────────────────────────────────
         private readonly ReactiveProperty<LevelState> _state       = new(LevelState.Idle);
@@ -31,9 +29,9 @@ namespace Match3.Services.Level
         public LevelConfig?                         CurrentConfig { get; private set; }
 
         // ── Objectives ───────────────────────────────────────────────────────
-        private readonly ReactiveProperty<ObjectiveProgress[]> _progress                 = new(Array.Empty<ObjectiveProgress>());
-        private readonly Subject<NodeType>                     _onObjectiveCompleted      = new();
-        private readonly Subject<Unit>                         _onAllObjectivesCompleted  = new();
+        private readonly ReactiveProperty<ObjectiveProgress[]> _progress                = new(Array.Empty<ObjectiveProgress>());
+        private readonly Subject<NodeType>                     _onObjectiveCompleted     = new();
+        private readonly Subject<Unit>                         _onAllObjectivesCompleted = new();
 
         public ReadOnlyReactiveProperty<ObjectiveProgress[]> Progress                 => _progress;
         public Observable<NodeType>                          OnObjectiveCompleted      => _onObjectiveCompleted;
@@ -54,10 +52,9 @@ namespace Match3.Services.Level
         private readonly CompositeDisposable _disposables = new();
 
         [Inject]
-        public LevelService(BoardService boardService, LayerService layerService)
+        public LevelService(BoardService boardService)
         {
             _boardService = boardService;
-            _layerService = layerService;
         }
 
         // ── Startup ──────────────────────────────────────────────────────────
@@ -69,8 +66,8 @@ namespace Match3.Services.Level
 
             CurrentConfig = config;
 
+            // BoardService.Initialize читает препятствия из конфига (Variant B)
             _boardService.Initialize(config);
-            _layerService.Initialize(config);
 
             InitializeObjectives(config);
             InitializeMoveCounter(config.MoveLimit);
@@ -97,6 +94,27 @@ namespace Match3.Services.Level
 
             var countByType = new Dictionary<NodeType, int>();
             foreach (var gem in match.MatchedGems)
+            {
+                if (gem.GemType == NodeType.None) continue;
+                countByType.TryGetValue(gem.GemType, out var prev);
+                countByType[gem.GemType] = prev + 1;
+            }
+
+            foreach (var kvp in countByType)
+                RegisterCollected(kvp.Key, kvp.Value);
+        }
+
+        /// <summary>
+        /// Регистрирует фишки уничтоженные напрямую бустом — без обёртки через GemMatch.
+        /// Гарантирует что бусты корректно обновляют целевые счётчики.
+        /// </summary>
+        public void RegisterDestroyedCells(IReadOnlyList<IGemView> gems)
+        {
+            if (gems == null)
+                throw new ArgumentNullException(nameof(gems));
+
+            var countByType = new Dictionary<NodeType, int>();
+            foreach (var gem in gems)
             {
                 if (gem.GemType == NodeType.None) continue;
                 countByType.TryGetValue(gem.GemType, out var prev);
@@ -173,8 +191,8 @@ namespace Match3.Services.Level
         {
             if (_state.Value != LevelState.Playing) return;
             var objectivesOk = IsAllObjectivesCompleted;
-            var layersOk     = _layerService.TotalLayerCells == 0 || _layerService.IsAllCleared;
-            if (objectivesOk && layersOk) Win();
+            var obstaclesOk  = _boardService.IsAllObstaclesCleared;
+            if (objectivesOk && obstaclesOk) Win();
         }
 
         private void CheckLoseCondition()
@@ -203,7 +221,8 @@ namespace Match3.Services.Level
                 .Subscribe(_ => CheckWinCondition())
                 .AddTo(_disposables);
 
-            _layerService.OnAllLayersCleared
+            // Все препятствия расчищены → проверяем победу
+            _boardService.OnAllObstaclesCleared
                 .Subscribe(_ => CheckWinCondition())
                 .AddTo(_disposables);
 

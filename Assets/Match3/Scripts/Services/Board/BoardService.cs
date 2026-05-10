@@ -11,12 +11,29 @@ using UnityEngine;
 
 namespace Match3.Services.Board
 {
-    public sealed class BoardService
+    public sealed class BoardService : IDisposable
     {
         private readonly Dictionary<Vector2Int, BoardCell> _cells        = new();
         private readonly List<Vector2Int>                  _spawners     = new();
         private readonly Dictionary<Vector2Int, NodeType>  _pendingTypes = new();
         private NodeType[] _allowedTypes = Array.Empty<NodeType>();
+
+        // ── Препятствия ───────────────────────────────────────────────────────
+
+        private int _totalObstacleCount;
+        private int _clearedObstacleCount;
+
+        private readonly Subject<(Vector2Int pos, int newHp, int maxHp)> _onObstacleHit     = new();
+        private readonly Subject<Vector2Int>                              _onObstacleCleared  = new();
+        private readonly Subject<Unit>                                    _onAllObstaclesCleared = new();
+
+        public Observable<(Vector2Int pos, int newHp, int maxHp)> OnObstacleHit      => _onObstacleHit;
+        public Observable<Vector2Int>                              OnObstacleCleared   => _onObstacleCleared;
+        public Observable<Unit>                                    OnAllObstaclesCleared => _onAllObstaclesCleared;
+
+        public int  TotalObstacleCount    => _totalObstacleCount;
+        public bool IsAllObstaclesCleared => _totalObstacleCount == 0 ||
+                                             _clearedObstacleCount >= _totalObstacleCount;
 
         // Координаты: Vector2Int(row, col)
         // row увеличивается ВНИЗ → "вниз" = (+1, 0)
@@ -52,6 +69,8 @@ namespace Match3.Services.Board
 
             _cells.Clear();
             _spawners.Clear();
+            _totalObstacleCount   = 0;
+            _clearedObstacleCount = 0;
 
             Rows    = config.Rows;
             Columns = config.Columns;
@@ -61,7 +80,18 @@ namespace Match3.Services.Board
             {
                 var data = config.GetCell(row, col);
                 var pos  = new Vector2Int(row, col);
-                _cells[pos] = new BoardCell { CellType = data.cellType };
+                var cell = new BoardCell { CellType = data.cellType };
+
+                if (data.obstacleType != ObstacleType.None)
+                {
+                    var hp = data.obstacleHp > 0 ? data.obstacleHp : DefaultObstacleHp(data.obstacleType);
+                    cell.ObstacleType  = data.obstacleType;
+                    cell.ObstacleHp    = hp;
+                    cell.MaxObstacleHp = hp;
+                    _totalObstacleCount++;
+                }
+
+                _cells[pos] = cell;
             }
 
             // Спавнер = ячейка над первой Normal ячейкой в каждой колонке
@@ -470,6 +500,112 @@ namespace Match3.Services.Board
             if (!_cells.TryGetValue(to, out var toCell) || !toCell.CanBeMoved) return;
             if (HasMatchAfterSwap(from, to))
                 result.Add((from, to));
+        }
+
+        // ── Обработка препятствий ────────────────────────────────────────────
+
+        /// <summary>
+        /// Обрабатывает препятствия после матча с учётом правил каждого типа:
+        /// — Ice:   удар по смежным ячейкам.
+        /// — Box:   удар по смежным ячейкам.
+        /// — Chain: при HP=1 — удар при попадании в матч; при HP>1 — удар по смежным ячейкам.
+        /// </summary>
+        public void ProcessObstaclesFromMatch(IReadOnlyList<Vector2Int> matchedCells)
+        {
+            var hitSet = new HashSet<Vector2Int>();
+
+            foreach (var pos in matchedCells)
+            {
+                // Chain HP=1: цепь разрывается прямым матчем
+                if (_cells.TryGetValue(pos, out var cell) &&
+                    cell.ObstacleType == ObstacleType.Chain &&
+                    cell.ObstacleHp   == 1)
+                {
+                    hitSet.Add(pos);
+                }
+
+                // Ice, Box, Chain HP>1: удар по смежным ячейкам
+                foreach (var dir in MatchOffsets)
+                {
+                    var adj = pos + dir;
+                    if (!_cells.TryGetValue(adj, out var adjCell)) continue;
+
+                    var t = adjCell.ObstacleType;
+                    var needsAdjacentHit =
+                        t == ObstacleType.Ice  ||
+                        t == ObstacleType.Box  ||
+                        t == ObstacleType.Rock ||
+                        (t == ObstacleType.Chain && adjCell.ObstacleHp > 1);
+
+                    if (needsAdjacentHit)
+                        hitSet.Add(adj);
+                }
+            }
+
+            foreach (var pos in hitSet)
+                TryHitObstacle(pos);
+        }
+
+        /// <summary>
+        /// Прямой удар по препятствиям в указанных ячейках.
+        /// Используется для взрывов (бустеров и супер-фишек).
+        /// </summary>
+        public void HitObstaclesDirectly(IReadOnlyList<Vector2Int> cells)
+        {
+            foreach (var pos in cells)
+                TryHitObstacle(pos);
+        }
+
+        private void TryHitObstacle(Vector2Int pos)
+        {
+            if (!_cells.TryGetValue(pos, out var cell)) return;
+            if (!cell.HasObstacle) return;
+
+            cell.ObstacleHp--;
+
+            if (cell.ObstacleHp <= 0)
+            {
+                cell.ObstacleType = ObstacleType.None;
+                cell.ObstacleHp   = 0;
+                _clearedObstacleCount++;
+                _onObstacleCleared.OnNext(pos);
+
+                if (_clearedObstacleCount >= _totalObstacleCount)
+                    _onAllObstaclesCleared.OnNext(Unit.Default);
+            }
+            else
+            {
+                _onObstacleHit.OnNext((pos, cell.ObstacleHp, cell.MaxObstacleHp));
+            }
+        }
+
+        /// <summary>
+        /// Возвращает все ячейки с активными препятствиями (для рендеринга визуалов).
+        /// </summary>
+        public IEnumerable<(Vector2Int pos, ObstacleType type, int hp, int maxHp)> GetObstacles()
+        {
+            foreach (var kvp in _cells)
+                if (kvp.Value.HasObstacle)
+                    yield return (kvp.Key, kvp.Value.ObstacleType,
+                                  kvp.Value.ObstacleHp, kvp.Value.MaxObstacleHp);
+        }
+
+        private static int DefaultObstacleHp(ObstacleType type) => type switch
+        {
+            ObstacleType.Ice   => 1,
+            ObstacleType.Box   => 1,
+            ObstacleType.Chain => 1,
+            ObstacleType.Rock  => 3,
+            _                  => 1,
+        };
+
+        // ── IDisposable ──────────────────────────────────────────────────────────────────────
+
+        public void Dispose()
+        {
+            _onObstacleHit.Dispose();
+            _onObstacleCleared.Dispose();
+            _onAllObstaclesCleared.Dispose();
         }
     }
 }

@@ -264,6 +264,14 @@ OnHintApplied    : Observable<(from, to)>
 OnShuffleApplied : Observable<Unit>
 ```
 
+### SwapService (SceneContext)
+```
+Lock() / Unlock()        — глобальный лок ввода
+ClearSelection()         — сброс _firstCell без лока
+                           вызывается при OnBoostSelected / OnBoostCancelled
+                           предотвращает случайный своп после буста
+```
+
 ### GemFactory (SceneContext)
 ```
 Create(nodeType, parent, name) → GemView
@@ -292,6 +300,21 @@ HintService, BoostService
 GemFactory              — создание GemView
 GameLoopController      — подготовка доски (IInitializable #1, IDisposable)
 GameFlowService         — игровой цикл: попапы, прогресс, навигация (IInitializable #2, IDisposable)
+```
+
+### LevelService (SceneContext)
+```
+RegisterMatch(match)                 — регистрация матча через GemMatch
+RegisterDestroyedCells(gems)         — регистрация без GemMatch (для бустов)
+ProcessTurnResult()                  — всегда вызывается после свопа И после буста
+```
+
+### GameLoopController (SceneContext)
+```Баги исправлены (2025):
+  - ClearSelection() при OnBoostSelected/OnBoostCancelled
+  - RegisterDestroyedCells + LayerService.ProcessMatches в ApplyBoostAtAsync
+  - ProcessTurnResult() всегда после буста
+  - LockCell(false) до null-чека в HandleSwapAsync
 ```
 
 ---
@@ -360,11 +383,50 @@ Assets/Match3/Scripts/
     └── ScenePresenterInstaller
 ```
 
----
+## 🛡️ Блокирующие препятствия ✅ РЕАЛИЗОВАНО (Variant B)
 
+### Типы
+| Тип | Поведение | Триггер удара | HP |
+|------|----------|----------------|----|
+| **Ice** | Гем заморожен, не движется, не матчится | Смежный матч | 1–2 |
+| **Box** | Нет гема, блокирует падение | Смежный матч | 1–3 |
+| **Chain** | Гем виден. HP=1 участвует в матче; HP>1 смежный удар | HP=1: прямой матч; HP>1: смежный | 1–2 |
+| **Rock** | Нет гема, как Box но прочнее. Визуальное разнообразие | Смежный матч | 2–4 |
+
+### Архитектура (Variant B)
+```
+Препятствия хранятся в BoardCell (ObstacleType + ObstacleHp + MaxObstacleHp).
+
+BoardCell автоматически обновляет поведение:
+  CanBeMoved     = !Locked && !HasObstacle && gem?.CanMove
+  CanFall        = !Locked && !HasObstacle && ...
+  CanMatch()     = gem != null && !Ice && !(Chain && hp > 1)
+  BlockFall      = Locked || HasObstacle || ...
+  IsEmpty()      = !HasObstacle && gem == null && incoming == null
+
+CellData: obstacleType + obstacleHp (0 = дефолт для типа)
+
+BoardService владеет логикой:
+  ProcessObstaclesFromMatch(matchedCells)  — удары по правилам типа
+  HitObstaclesDirectly(cells)              — прямой удар (бустеры, супер-фишки)
+  GetObstacles()                           — для рендеринга
+  OnObstacleHit, OnObstacleCleared, OnAllObstaclesCleared
+
+LayerService — удалён (stub-файл, удалить вручную)
+LayerPresenter переписан на события BoardService
+LayerView: SpawnObstacleCell / UpdateCellHp / ClearCell
+
+LevelService.CheckWinCondition: _boardService.IsAllObstaclesCleared
+```
+
+### TODO по препятствиям
+- Заменить dev-цвета в LayerView на спрайты (ObstacleConfig ScriptableObject)
+- Обновить Level Editor (выбор типа + HP препятствия)
+- Удалить файл LayerService.cs
+
+---
 ## 🔮 Не реализовано (следующие этапы)
 - **#7** LevelState enum вынести из LevelService.cs в Core/Enums/
-- Препятствия: Ice, Box, Chain, HedgehogFish
 - UI анимации попапов (DOTween — вылет/исчезновение)
 - Анимация вылета иконок наград в StageRewardPopupView
 - LevelConfig.Rewards[] — пока не выдаются (только StageConfig.StageRewards)

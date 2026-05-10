@@ -13,7 +13,6 @@ using Match3.Services.Board;
 using Match3.Services.Boost;
 using Match3.Services.Hint;
 using Match3.Services.Inventory;
-using Match3.Services.Layer;
 using Match3.Services.Level;
 using Match3.Services.Swap;
 using Match3.Views;
@@ -27,7 +26,6 @@ namespace Match3.Controllers
     {
         private readonly BoardService      _boardService;
         private readonly SwapService       _swapService;
-        private readonly LayerService      _layerService;
         private readonly LevelService      _levelService;
         private readonly HintService       _hintService;
         private readonly BoostService      _boostService;
@@ -48,7 +46,6 @@ namespace Match3.Controllers
         public GameLoopController(
             BoardService      boardService,
             SwapService       swapService,
-            LayerService      layerService,
             LevelService      levelService,
             HintService       hintService,
             BoostService      boostService,
@@ -61,7 +58,6 @@ namespace Match3.Controllers
         {
             _boardService     = boardService;
             _swapService      = swapService;
-            _layerService     = layerService;
             _levelService     = levelService;
             _hintService      = hintService;
             _boostService     = boostService;
@@ -111,6 +107,14 @@ namespace Match3.Controllers
 
             _boostService.OnBoostApplied
                 .Subscribe(data => ApplyBoostAtAsync(data.boost, data.pos, _cts.Token).Forget())
+                .AddTo(_disposables);
+
+            _boostService.OnBoostSelected
+                .Subscribe(_ => _swapService.ClearSelection())
+                .AddTo(_disposables);
+
+            _boostService.OnBoostCancelled
+                .Subscribe(_ => _swapService.ClearSelection())
                 .AddTo(_disposables);
 
             // Ввод намеренно НЕ включается здесь.
@@ -184,7 +188,16 @@ namespace Match3.Controllers
 
                 if (explosionCells.Count > 0)
                 {
+                    // Собираем гемы ДО анимации: после AnimateDestroyCellsAsync
+                    // они удаляются с доски и ссылки станут недействительны.
+                    var destroyedGems = CollectGemsAt(explosionCells);
+
                     await _boardPresenter.AnimateDestroyCellsAsync(explosionCells, ct);
+
+                    // Регистрируем уничтоженные фишки в целевых счётчиках
+                    _levelService.RegisterDestroyedCells(destroyedGems);
+                    // Прямой удар по препятствиям в зоне взрыва бустера
+                    _boardService.HitObstaclesDirectly(explosionCells);
 
                     var fallMoves = _boardService.ComputeAndApplyFalls();
                     if (fallMoves.Count > 0)
@@ -199,9 +212,12 @@ namespace Match3.Controllers
                     {
                         _levelService.UseMove();
                         await ResolveAsync(matches, ct);
-                        _levelService.ProcessTurnResult();
                     }
                 }
+
+                // Всегда проверяем победу/поражение после буста —
+                // даже если цепных матчей не возникло, буст мог закрыть последние цели.
+                _levelService.ProcessTurnResult();
             }
             catch (OperationCanceledException) { }
             catch (Exception e) { Debug.LogError($"[GameLoop] ApplyBoost: {e.Message}"); }
@@ -210,6 +226,17 @@ namespace Match3.Controllers
                 _swapService.Unlock();
                 _inputHandler.SetInputEnabled(true);
             }
+        }
+
+        private IReadOnlyList<IGemView> CollectGemsAt(IEnumerable<Vector2Int> cells)
+        {
+            var result = new List<IGemView>();
+            foreach (var p in cells)
+            {
+                var g = _boardService.GetGem(p);
+                if (g != null) result.Add(g);
+            }
+            return result;
         }
 
         // ── Hint / Shuffle ────────────────────────────────────────────────────
@@ -261,6 +288,12 @@ namespace Match3.Controllers
 
             try
             {
+                // Разблокируем ячейки немедленно: ввод уже отключён,
+                // поэтому дополнительная блокировка на время анимации избыточна.
+                // Без этого при раннем return ячейки оставались залоченными навсегда.
+                _boardService.LockCell(from, false);
+                _boardService.LockCell(to,   false);
+
                 var gemFrom = _boardService.GetGem(from);
                 var gemTo   = _boardService.GetGem(to);
                 if (gemFrom == null || gemTo == null) return;
@@ -268,16 +301,17 @@ namespace Match3.Controllers
                 _boardService.ExchangeGems(from, to);
                 await _boardPresenter.AnimateSwapAsync(from, to, gemFrom, gemTo, ct);
 
-                _boardService.LockCell(from, false);
-                _boardService.LockCell(to,   false);
-
                 var matches = _boardService.FindAndCreateMatches(new[] { from, to });
 
                 if (matches.Count == 0)
                 {
                     _boardService.ExchangeGems(from, to);
+                    // Передаём to/from в обратном порядке: после undo-свапа
+                    // gemA визуально в to-слоте (нужно в from), gemB — в from-слоте (нужно в to).
+                    // AnimateReturnSwapAsync использует worldTo=slotPos(2-й парам)
+                    // и worldFrom=slotPos(1-й парам), поэтому переставляем их.
                     await _boardPresenter.AnimateReturnSwapAsync(
-                        from, to, _boardService.GetGem(from)!, _boardService.GetGem(to)!, ct);
+                        to, from, _boardService.GetGem(from)!, _boardService.GetGem(to)!, ct);
                     return;
                 }
 
@@ -304,7 +338,8 @@ namespace Match3.Controllers
                 foreach (var match in matches)
                 {
                     _levelService.RegisterMatch(match);
-                    _layerService.ProcessMatches(match.MatchingCells);
+                    // Правила удара по препятствиям: Ice/Box смежные, Chain HP=1 прямой матч
+                    _boardService.ProcessObstaclesFromMatch(match.MatchingCells);
                 }
 
                 var explosionCells = CollectExplosionCells(matches);
@@ -317,6 +352,10 @@ namespace Match3.Controllers
                     tasks.Add(_boardPresenter.AnimateDestroyCellsAsync(explosionCells, ct));
 
                 await UniTask.WhenAll(tasks).AttachExternalCancellation(ct);
+
+                // Прямой удар по препятствиям в зоне взрыва супер-фишек
+                if (explosionCells.Count > 0)
+                    _boardService.HitObstaclesDirectly(explosionCells);
 
                 SpawnSuperGems(matches);
 
