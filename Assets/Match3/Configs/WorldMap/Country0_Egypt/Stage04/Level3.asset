@@ -12,99 +12,221 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f742d7f78e12d6f43ac1baa25fcabaa3, type: 3}
   m_Name: Level3
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.LevelConfig
-  <MoveLimit>k__BackingField: 25
+  <MoveLimit>k__BackingField: 26
   <AllowedNodeTypes>k__BackingField: 01000000020000000300000004000000
   <Objectives>k__BackingField:
-  - nodeType: 1
-    count: 33
+  - nodeType: 2
+    count: 40
+  - nodeType: 4
+    count: 35
   <Grid>k__BackingField:
   - <Cells>k__BackingField:
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+  - <Cells>k__BackingField:
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+  - <Cells>k__BackingField:
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 1
+      obstacleHp: 1
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 1
+      obstacleHp: 1
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
   - <Cells>k__BackingField:
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
   - <Cells>k__BackingField:
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 1
+      obstacleHp: 1
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 1
+      obstacleHp: 1
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
   - <Cells>k__BackingField:
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
-    - cellType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
       nodeType: 0
-      hasLayer: 0
-    - cellType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
       nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
   - <Cells>k__BackingField:
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      hasLayer: 0
-    - cellType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
       nodeType: 0
-      hasLayer: 0
-    - cellType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
       nodeType: 0
-      hasLayer: 0
-    - cellType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 1
       nodeType: 0
-      hasLayer: 0
-    - cellType: 0
-      nodeType: 0
-      hasLayer: 0
+      obstacleType: 0
+      obstacleHp: 0
   <Rewards>k__BackingField:
   - <Type>k__BackingField: 1
     <Boost>k__BackingField: 0
-    <Amount>k__BackingField: 156
+    <Amount>k__BackingField: 35
   - <Type>k__BackingField: 0
     <Boost>k__BackingField: 6
-    <Amount>k__BackingField: 1
-  - <Type>k__BackingField: 0
-    <Boost>k__BackingField: 1
     <Amount>k__BackingField: 1

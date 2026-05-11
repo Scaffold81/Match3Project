@@ -64,7 +64,7 @@ MonoBehaviour:
     <SpriteDamaged>k__BackingField: {fileID: 21300000, guid: e845fcd1e9d696d46890bd5b57858aff, type: 3}
     <SpriteCritical>k__BackingField: {fileID: 21300000, guid: fea2bd85d4569e9479e9d6d8fd6bf818, type: 3}
     <FallbackColor>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
-  - <ObstacleType>k__BackingField: 4
+  - <ObstacleType>k__BackingField: 1
     <SpriteFullHp>k__BackingField: {fileID: 21300000, guid: 7e0405c9f2956e743b56739e7ea4e64c, type: 3}
     <SpriteDamaged>k__BackingField: {fileID: 21300000, guid: 7e0405c9f2956e743b56739e7ea4e64c, type: 3}
     <SpriteCritical>k__BackingField: {fileID: 21300000, guid: 7e0405c9f2956e743b56739e7ea4e64c, type: 3}

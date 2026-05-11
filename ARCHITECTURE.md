@@ -424,8 +424,80 @@ LevelService.CheckWinCondition: _boardService.IsAllObstaclesCleared
 - Обновить Level Editor (выбор типа + HP препятствия)
 - Удалить файл LayerService.cs
 
+## 📐 План генерации уровней (135 уровней, B+C)
+
+### Прогрессия сложности
+| Страна | Уровни | Ходы | Цвета | Размеры досок |
+|--------|--------|------|-------|---------------|
+| Egypt 0 | 1–27 | 32→24 | 3→4 | 7×7 → 8×8 |
+| Greece 1 | 28–54 | 28→24 | 4→5 | 8×8 → 9×9 |
+| China 2 | 55–81 | 26→22 | 5 | 9×9 → 10×10 |
+| Maya 3 | 82–108 | 24→20 | 5→6 | 10×10 → 11×11 |
+| India 4 | 109–135 | 22→18 | 6 | 11×11 → 12×12 |
+
+### Egypt — детальный план этапов
+| Этап | Уровни | Размер | Форма | Препятствия | Ходы |
+|------|--------|--------|-------|-------------|------|
+| 01 | 1–3 | 7×7 | FULL | — | 32,30,30 |
+| 02 | 4–6 | 7×7 | ROUNDED | — | 30,28,28 |
+| 03 | 7–9 | 7×7 | CROSS | Ice×2 | 30,28,28 |
+| 04 | 10–12 | 7×7 | DIAMOND | Ice×4 | 28,26,26 |
+| 05 | 13–15 | 7×7 | HOURGLASS | Ice×4 Box×2 | 28,26,26 |
+| 06 | 16–18 | 8×7 | FULL | Box×4 | 28,26,26 |
+| 07 | 19–21 | 8×7 | STAIRS | Box×4 Chain×2 | 26,24,24 |
+| 08 | 22–24 | 8×8 | FULL | Chain×4 | 26,24,24 |
+| 09 | 25–27 | 8×8 | T-SHAPE | Ice×4 Chain×2 | 26,24,24 |
+
+### Формы досок (Hidden-ячейки)
+```
+ROUNDED 7×7:   H.N.N.N.N.N.H  (углы срезаны)
+               N.N.N.N.N.N.N  (×5 rows)
+               H.N.N.N.N.N.H
+
+CROSS 7×7:     H.H.N.N.N.H.H  (2×2 углы скрыты)
+               H.H.N.N.N.H.H
+               N.N.N.N.N.N.N  (×3 rows)
+               H.H.N.N.N.H.H
+               H.H.N.N.N.H.H
+
+DIAMOND 7×7:   H.H.H.N.H.H.H
+               H.H.N.N.N.H.H
+               H.N.N.N.N.N.H
+               N.N.N.N.N.N.N
+               H.N.N.N.N.N.H
+               H.H.N.N.N.H.H
+               H.H.H.N.H.H.H
+
+HOURGLASS 7×7: N.N.N.N.N.N.N
+               H.N.N.N.N.N.H
+               H.H.N.N.N.H.H
+               H.H.H.N.H.H.H
+               H.H.N.N.N.H.H
+               H.N.N.N.N.N.H
+               N.N.N.N.N.N.N
+
+STAIRS 8×7:    N×7 / H.N×6 / H.N×6 / HH.N×5 / HH.N×5
+               HHH.N×4 / HHH.N×4 / HHHH.N×3
+
+T-SHAPE 8×8:   N×8 (×2 top rows)
+               HH.N×4.HH  / HHH.NN.HHH (×5 stem rows)
+```
+
+### obstacleType enum (в YAML)
+```
+0=None  1=Ice  2=Box  3=Chain  4=Rock
+cellType: 0=Normal  1=Hidden
+```
+
+### AllowedNodeTypes (hex в YAML)
+```
+3 цвета (R,B,G): 010000000200000003000000
+4 цвета +Y:      01000000020000000300000004000000
+5 цветов +P:     0100000002000000030000000400000005000000
+6 цветов +O:     010000000200000003000000040000000500000006000000
+```
+
 ---
-## 🔮 Не реализовано (следующие этапы)
 - **#7** LevelState enum вынести из LevelService.cs в Core/Enums/
 - UI анимации попапов (DOTween — вылет/исчезновение)
 - Анимация вылета иконок наград в StageRewardPopupView

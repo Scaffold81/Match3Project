@@ -16,73 +16,15 @@ MonoBehaviour:
   <AllowedNodeTypes>k__BackingField: 01000000020000000300000004000000
   <Objectives>k__BackingField:
   - nodeType: 1
-    count: 50
+    count: 40
   - nodeType: 2
-    count: 50
+    count: 40
   <Grid>k__BackingField:
   - <Cells>k__BackingField:
     - cellType: 0
       nodeType: 0
-      obstacleType: 4
-      obstacleHp: 1
-    - cellType: 0
-      nodeType: 0
       obstacleType: 0
       obstacleHp: 0
-    - cellType: 1
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 1
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 1
-      obstacleHp: 1
-  - <Cells>k__BackingField:
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 4
-      obstacleHp: 1
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 1
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 1
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 1
-      obstacleHp: 1
-  - <Cells>k__BackingField:
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 4
-      obstacleHp: 1
     - cellType: 0
       nodeType: 0
       obstacleType: 0
@@ -105,8 +47,8 @@ MonoBehaviour:
       obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      obstacleType: 1
-      obstacleHp: 1
+      obstacleType: 0
+      obstacleHp: 0
   - <Cells>k__BackingField:
     - cellType: 0
       nodeType: 0
@@ -120,35 +62,6 @@ MonoBehaviour:
       nodeType: 0
       obstacleType: 0
       obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 0
-      obstacleHp: 0
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 1
-      obstacleHp: 1
-  - <Cells>k__BackingField:
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 2
-      obstacleHp: 1
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 2
-      obstacleHp: 1
-    - cellType: 0
-      nodeType: 0
-      obstacleType: 2
-      obstacleHp: 1
     - cellType: 0
       nodeType: 0
       obstacleType: 0
@@ -197,16 +110,103 @@ MonoBehaviour:
   - <Cells>k__BackingField:
     - cellType: 0
       nodeType: 0
-      obstacleType: 3
-      obstacleHp: 1
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      obstacleType: 3
-      obstacleHp: 1
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
-      obstacleType: 3
-      obstacleHp: 1
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+  - <Cells>k__BackingField:
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+  - <Cells>k__BackingField:
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+  - <Cells>k__BackingField:
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
+    - cellType: 0
+      nodeType: 0
+      obstacleType: 0
+      obstacleHp: 0
     - cellType: 0
       nodeType: 0
       obstacleType: 0
@@ -226,7 +226,7 @@ MonoBehaviour:
   <Rewards>k__BackingField:
   - <Type>k__BackingField: 1
     <Boost>k__BackingField: 0
-    <Amount>k__BackingField: 50
+    <Amount>k__BackingField: 30
   - <Type>k__BackingField: 0
     <Boost>k__BackingField: 6
     <Amount>k__BackingField: 1
