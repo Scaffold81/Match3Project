@@ -216,15 +216,80 @@ StageConfig.StageRewards[] — выдаются через RewardService при 
 Бонусный этап → ставь более ценные награды (редкие бусты, много монет).
 ```
 
-### RewardService (ProjectContext, IDisposable)
+### RewardService (ProjectContext, IDisposable) ✅ ОБНОВЛЕНО
 ```
 GrantAll(RewardData[])    → выдаёт все награды из массива
 OnRewardGranted           : Observable<RewardData>  ← Presenter слушает для анимации
 
 Поддерживаемые типы:
   Boost → InventoryService.Add(boost, amount)
-  Coins → заглушка (TODO: CoinService)
-  Lives → заглушка (TODO: LivesService)
+  Coins → CoinService.Add(amount)
+  Lives → LivesService.AddLives(amount)
+```
+
+---
+
+## 💰 Кошелёк (Wallet) ✅ РЕАЛИЗОВАНО
+
+### EconomyConfig (ProjectContext, ScriptableObject)
+```
+Путь: Match3/Configs/Economy
+Значения (все редактируются в инспекторе):
+
+  MaxLives            = 5       — максимум жизней
+  LifeRegenSeconds    = 1800    — 30 мин на одну жизнь
+  LivesPurchasePrice  = 300     — монет за покупку жизней
+  LivesPurchaseAmount = 5       — кол-во жизней при покупке
+  InitialCoins        = 500     — монеты при первом запуске
+```
+
+### CoinService (ProjectContext, IDisposable)
+```
+PlayerPrefs: "wallet_coins"
+
+Coins : ReadOnlyReactiveProperty<int>
+Add(amount)           — добавляет монеты (throws если amount <= 0)
+TrySpend(amount)      — тратит монеты; false если недостаточно
+```
+
+### LivesService (ProjectContext, IDisposable)
+```
+PlayerPrefs:
+  "wallet_lives"           → int    — текущее кол-во жизней
+  "wallet_lives_timestamp" → string — Unix-секунды прихода следующей жизни; "0" = полные
+
+Lives             : ReadOnlyReactiveProperty<int>
+TimeUntilNextLife : ReadOnlyReactiveProperty<TimeSpan>   — Zero когда жизни полные
+MaxLives          : int
+
+TrySpendLife()     → bool   — тратит жизнь; false если 0
+AddLives(amount)            — добавляет жизни; молча игнорирует если уже MaxLives
+
+Таймер: UniTask-цикл (тик каждую секунду).
+  При потере с максимума → nextLifeAt = now + RegenSeconds.
+  При достижении максимума → nextLifeAt сбрасывается в 0.
+  Офлайн-восстановление → на старте Tick() досчитывает пропущенное время.
+```
+
+### WalletView (MonoBehaviour, DontDestroyOnLoad)
+```
+Спавнится из ProjectContext через FromComponentInNewPrefab.
+Canvas: Screen Space – Overlay, Sort Order = 10.
+
+SetCoins(int)
+SetLives(int current, int max)
+ShowTimer(TimeSpan)
+HideTimer()
+```
+
+### WalletPresenter (ProjectContext, IInitializable, IDisposable)
+```
+Один на всю игру. Подписывается на CoinService + LivesService → обновляет WalletView.
+
+Initialize():
+  CoinService.Coins       → SetCoins
+  LivesService.Lives      → SetLives
+  LivesService.TimeUntilNextLife → ShowTimer / HideTimer (Zero = Hide)
 ```
 
 ---
@@ -288,7 +353,11 @@ Create(nodeType, parent, name) → GemView
 ```
 InventoryService   — бусты (PlayerPrefs)
 ProgressService    — прогресс карты (PlayerPrefs)
+CoinService        — монеты (PlayerPrefs) ✅ НОВЫЙ
+LivesService       — жизни + таймер (PlayerPrefs) ✅ НОВЫЙ
 RewardService      — выдача наград за уровни (IDisposable)
+WalletPresenter    — связывает кошелёк с WalletView (IInitializable, IDisposable) ✅ НОВЫЙ
+WalletView         — HUD: монеты + жизни + таймер (DontDestroyOnLoad) ✅ НОВЫЙ
 ISceneManagerService → SceneManagerService
 Bootstrapper       — стартует с SceneId.StageMap
 ```
@@ -310,7 +379,8 @@ ProcessTurnResult()                  — всегда вызывается по�
 ```
 
 ### GameLoopController (SceneContext)
-```Баги исправлены (2025):
+```
+Баги исправлены (2025):
   - ClearSelection() при OnBoostSelected/OnBoostCancelled
   - RegisterDestroyedCells + LayerService.ProcessMatches в ApplyBoostAtAsync
   - ProcessTurnResult() всегда после буста
@@ -326,6 +396,7 @@ LevelConfig    — MoveLimit, AllowedNodeTypes[], Objectives[], Grid[], Rewards[
 StageConfig    — StageName, StageIcon, IsBonusStage, SuperPrize, StageRewards[], Levels[3]
 CountryConfig  — CountryName, CountryIcon, SectionColor, Stages[10]
 WorldMapConfig — Countries[5]
+EconomyConfig  — MaxLives, LifeRegenSeconds, LivesPurchasePrice, LivesPurchaseAmount, InitialCoins ✅ НОВЫЙ
 ```
 
 ---
@@ -340,9 +411,10 @@ Assets/Match3/Scripts/
 │   ├── BoostTypeExtensions.cs  ← extension ToSuperGemType()
 │   └── GemMatch.cs, GemState.cs, IGemView.cs
 ├── Configs/
-│   ├── GemConfig, BoardConfig, AnimationConfig
+│   ├── GemConfig, BoardConfig, AnimationConfig, RewardIconConfig
 │   ├── LevelConfig, LevelConfigRepository
 │   ├── StageConfig, WorldMapConfig, CountryConfig
+│   └── EconomyConfig  ✅ НОВЫЙ
 ├── Controllers/
 │   ├── Bootstrapper
 │   └── GameLoopController    ← EnableInput() вызывается GameFlowService
@@ -355,28 +427,30 @@ Assets/Match3/Scripts/
 │   ├── HintService, BoostService
 │   ├── GameFlowService          ← оркестратор игрового цикла (SceneContext)
 │   ├── InventoryService, ProgressService, RewardService  ← ProjectContext
+│   ├── CoinService              ← ProjectContext ✅ НОВЫЙ
+│   ├── LivesService             ← ProjectContext ✅ НОВЫЙ
 │   └── StarCalculator
 ├── Views/
 │   ├── StageMapView, StageNodeView, CountryNodeView, LevelSelectPopupView
 │   ├── BoardView, GemView, LayerView
 │   ├── ObjectiveView, MoveCounterView
-│   ├── LevelResultView          ← только Lose-панель (Restart + BackToMap)
-│   ├── LevelTaskPopupView       ← попап задания уровня (показывается перед игрой)
-│   ├── StageRewardPopupView     ← попап наград за этап (показывается после последнего уровня)
+│   ├── LevelResultView, LevelTaskPopupView, StageRewardPopupView
 │   ├── BackpackView, ActiveBoostView
+│   ├── WalletView               ← DontDestroyOnLoad, спавн из ProjectContext ✅ НОВЫЙ
 │   └── BoardInputHandler
 ├── Presenters/
 │   ├── StageMapPresenter
 │   ├── BoardPresenter, SwapPresenter, LayerPresenter
 │   ├── ObjectivePresenter
 │   ├── LevelPresenter           ← только HUD: ходы + цели
-│   └── BoostPresenter
+│   ├── BoostPresenter
+│   └── WalletPresenter          ← ProjectContext, один на всю игру ✅ НОВЫЙ
 ├── Editor/
 │   ├── WorldMapConfigGenerator, StageMapUISetup, LevelEditorWindow
 │   └── CellDataDrawer, UISetupEditor, StageMapUISetupEditor
 └── Installers/
-    ├── ProjectConfigInstaller
-    ├── ProjectServiceInstaller
+    ├── ProjectConfigInstaller    ← + EconomyConfig ✅
+    ├── ProjectServiceInstaller   ← + CoinService, LivesService, WalletPresenter, WalletView ✅
     ├── StageMapInstaller, StageMapViewInstaller
     ├── SceneServiceInstaller    ← + GameFlowService (после GameLoopController)
     ├── SceneViewInstaller       ← + LevelTaskPopupView, StageRewardPopupView
@@ -408,8 +482,8 @@ CellData: obstacleType + obstacleHp (0 = дефолт для типа)
 
 BoardService владеет логикой:
   ProcessObstaclesFromMatch(matchedCells)  — удары по правилам типа
-  HitObstaclesDirectly(cells)              — прямой удар (бустеры, супер-фишки)
-  GetObstacles()                           — для рендеринга
+  HitObstaclesDirectly(cells)             — прямой удар (бустеры, супер-фишки)
+  GetObstacles()                          — для рендеринга
   OnObstacleHit, OnObstacleCleared, OnAllObstaclesCleared
 
 LayerService — удалён (stub-файл, удалить вручную)
@@ -498,10 +572,15 @@ cellType: 0=Normal  1=Hidden
 ```
 
 ---
+
+## 📝 TODO
+
 - **#7** LevelState enum вынести из LevelService.cs в Core/Enums/
 - UI анимации попапов (DOTween — вылет/исчезновение)
 - Анимация вылета иконок наград в StageRewardPopupView
 - LevelConfig.Rewards[] — пока не выдаются (только StageConfig.StageRewards)
-- CoinService + LivesService (заглушки в RewardService)
 - Комбо-свопы двух супер-фишек
 - Визуальные эффекты взрывов (частицы)
+- WalletView — создать префаб в Unity (Canvas SO=10, TMP-тексты, _timerContainer)
+- EconomyConfig — создать ассет через Match3/Configs/Economy и назначить в ProjectConfigInstaller
+- ProjectServiceInstaller — назначить WalletView prefab в инспекторе

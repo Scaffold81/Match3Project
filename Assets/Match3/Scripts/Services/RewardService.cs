@@ -5,6 +5,7 @@ using Match3.Core.Enums;
 using Match3.Core.Models;
 using Match3.Services.Inventory;
 using R3;
+using UnityEngine;
 using Zenject;
 
 namespace Match3.Services
@@ -15,12 +16,14 @@ namespace Match3.Services
     ///
     /// Поддерживаемые типы:
     ///   Boost → InventoryService.Add(boost, amount)
-    ///   Coins → CoinService (заглушка — расширить когда появится)
-    ///   Lives → LivesService (заглушка — расширить когда появится)
+    ///   Coins → CoinService.Add(amount)
+    ///   Lives → LivesService.AddLives(amount)
     /// </summary>
     public sealed class RewardService : IDisposable
     {
         private readonly InventoryService _inventoryService;
+        private readonly CoinService      _coinService;
+        private readonly LivesService     _livesService;
 
         private readonly Subject<RewardData> _onRewardGranted = new();
 
@@ -31,9 +34,14 @@ namespace Match3.Services
         public Observable<RewardData> OnRewardGranted => _onRewardGranted;
 
         [Inject]
-        public RewardService(InventoryService inventoryService)
+        public RewardService(
+            InventoryService inventoryService,
+            CoinService      coinService,
+            LivesService     livesService)
         {
             _inventoryService = inventoryService;
+            _coinService      = coinService;
+            _livesService     = livesService;
         }
 
         /// <summary>
@@ -54,7 +62,7 @@ namespace Match3.Services
         {
             if (reward.Amount <= 0)
             {
-                UnityEngine.Debug.LogWarning(
+                Debug.LogWarning(
                     $"[RewardService] Пропущена награда {reward} — Amount <= 0");
                 return;
             }
@@ -66,11 +74,11 @@ namespace Match3.Services
                     break;
 
                 case RewardType.Coins:
-                    GrantCoins(reward);
+                    _coinService.Add(reward.Amount);
                     break;
 
                 case RewardType.Lives:
-                    GrantLives(reward);
+                    _livesService.AddLives(reward.Amount);
                     break;
 
                 default:
@@ -85,26 +93,12 @@ namespace Match3.Services
         {
             if (reward.Boost == BoostType.None)
             {
-                UnityEngine.Debug.LogWarning(
+                Debug.LogWarning(
                     "[RewardService] Boost == None — укажи конкретный тип буста в конфиге");
                 return;
             }
 
             _inventoryService.Add(reward.Boost, reward.Amount);
-        }
-
-        private static void GrantCoins(RewardData reward)
-        {
-            // TODO: CoinService.Add(reward.Amount) — добавить когда появится
-            UnityEngine.Debug.LogWarning(
-                $"[RewardService] Coins +{reward.Amount} (заглушка)");
-        }
-
-        private static void GrantLives(RewardData reward)
-        {
-            // TODO: LivesService.Add(reward.Amount) — добавить когда появится
-            UnityEngine.Debug.LogWarning(
-                $"[RewardService] Lives +{reward.Amount} (заглушка)");
         }
 
         public void Dispose() => _onRewardGranted.Dispose();

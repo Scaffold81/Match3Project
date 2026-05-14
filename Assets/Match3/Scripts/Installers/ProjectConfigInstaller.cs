@@ -8,11 +8,12 @@ namespace Match3.Installers
 {
     public sealed class ProjectConfigInstaller : MonoInstaller
     {
-        [SerializeField] private GemConfig             _gemConfig             = null!;
-        [SerializeField] private BoardConfig           _boardConfig           = null!;
-        [SerializeField] private AnimationConfig       _animationConfig       = null!;
-        [SerializeField] private WorldMapConfig        _worldMapConfig        = null!;
-        [SerializeField] private RewardIconConfig      _rewardIconConfig      = null!;
+        [SerializeField] private GemConfig        _gemConfig        = null!;
+        [SerializeField] private BoardConfig      _boardConfig      = null!;
+        [SerializeField] private AnimationConfig  _animationConfig  = null!;
+        [SerializeField] private WorldMapConfig   _worldMapConfig   = null!;
+        [SerializeField] private RewardIconConfig _rewardIconConfig = null!;
+        [SerializeField] private EconomyConfig    _economyConfig    = null!;
 
         public override void InstallBindings()
         {
@@ -23,6 +24,7 @@ namespace Match3.Installers
             Container.BindInstance(_animationConfig).AsSingle();
             Container.BindInstance(_worldMapConfig).AsSingle();
             Container.BindInstance(_rewardIconConfig).AsSingle();
+            Container.BindInstance(_economyConfig).AsSingle();
         }
 
         private void ValidateConfigs()
@@ -37,6 +39,8 @@ namespace Match3.Installers
                 Debug.LogError("ProjectConfigInstaller: WorldMapConfig is not assigned");
             if (_rewardIconConfig == null)
                 Debug.LogError("ProjectConfigInstaller: RewardIconConfig is not assigned");
+            if (_economyConfig == null)
+                Debug.LogError("ProjectConfigInstaller: EconomyConfig is not assigned");
         }
     }
 }
