@@ -81,22 +81,12 @@ namespace Match3.Views
 
         // ── Позиционирование фишки ────────────────────────────────────────────
 
-        /// <summary>
-        /// Назначает размер и позицию RectTransform фишки в слоте (row, col).
-        /// Вызывается GemFactory после создания или BoardPresenter при перемещении.
-        /// </summary>
         public void PositionGem(RectTransform rt, Vector2Int slot)
         {
             if (!_layoutReady)
                 throw new InvalidOperationException("Call InitializeLayout before PositionGem");
 
             ApplySlotTransform(rt, slot);
-        }
-
-        public void DestroyGem(GemView gem)
-        {
-            if (gem != null)
-                Destroy(gem.gameObject);
         }
 
         // ── Позиции ───────────────────────────────────────────────────────────

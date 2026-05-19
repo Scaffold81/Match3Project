@@ -11,32 +11,29 @@ namespace Match3.Services.Factories
 {
     public sealed class GemFactory
     {
-        private readonly DiContainer _container;
-        private readonly GemConfig   _gemConfig;
+        private readonly GemConfig _gemConfig;
+        private readonly GemPool   _gemPool;
 
         [Inject]
-        public GemFactory(DiContainer container, GemConfig gemConfig)
+        public GemFactory(GemConfig gemConfig, GemPool gemPool)
         {
-            _container = container;
             _gemConfig = gemConfig;
+            _gemPool   = gemPool;
         }
 
-        /// <summary>
-        /// Создаёт GemView из базового GemViewPrefab, назначает визуал и конфиг.
-        /// Позиционирование — ответственность BoardView.
-        /// </summary>
         public GemView Create(NodeType nodeType, Transform parent, string name)
         {
             var visual = _gemConfig.GetVisual(nodeType)
-                ?? throw new InvalidOperationException($"[GemFactory] No visual for {nodeType}");
+                ?? throw new InvalidOperationException(
+                    $"[GemFactory] No visual for {nameof(nodeType)}: {nodeType}");
 
-            var view = _container.InstantiatePrefabForComponent<GemView>(
-                _gemConfig.GemViewPrefab, parent);
-
+            var view = _gemPool.Get(parent);
             view.name = name;
             view.SetConfig(_gemConfig);
             view.SetVisual(nodeType, visual);
             return view;
         }
+
+        public void Return(GemView gem) => _gemPool.Return(gem);
     }
 }
