@@ -21,7 +21,6 @@ namespace Match3.Installers
             Container.Bind<LevelService>().AsSingle().NonLazy();
             Container.Bind<HintService>().AsSingle().NonLazy();
             Container.Bind<BoostService>().AsSingle().NonLazy();
-            Container.Bind<GemPool>().AsSingle().NonLazy();
             Container.Bind<GemFactory>().AsSingle().NonLazy();
 
             // GameLoopController инициализируется первым — подготавливает доску

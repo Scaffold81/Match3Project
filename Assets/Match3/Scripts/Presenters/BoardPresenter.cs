@@ -31,8 +31,7 @@ namespace Match3.Presenters
             BoardConfig     boardConfig,
             GemConfig       gemConfig,
             AnimationConfig animConfig,
-            GemFactory      gemFactory,
-            GemPool         gemPool)
+            GemFactory      gemFactory)
         {
             _boardService = boardService;
             _boardView    = boardView;
@@ -42,7 +41,6 @@ namespace Match3.Presenters
             _gemFactory   = gemFactory;
 
             _boardView.Initialize(_boardConfig);
-            gemPool.Initialize(_boardView.GemContainer);
         }
 
         public void Initialize() { }
@@ -231,7 +229,7 @@ namespace Match3.Presenters
                 gemView.PlayDestroy(_animConfig.MatchDestroyDuration, () =>
                 {
                     _boardService.RemoveGem(pos);
-                    _gemFactory.Return(gemView);
+                    _boardView.DestroyGem(gemView);
                     tcs.TrySetResult();
                 });
 
@@ -259,7 +257,7 @@ namespace Match3.Presenters
                 gemView.PlayDestroy(_animConfig.MatchDestroyDuration, () =>
                 {
                     _boardService.RemoveGem(capturedPos);
-                    _gemFactory.Return(gemView);
+                    _boardView.DestroyGem(gemView);
                     tcs.TrySetResult();
                 });
 
