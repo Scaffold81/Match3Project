@@ -192,10 +192,12 @@ namespace Match3.Controllers
                     // они удаляются с доски и ссылки станут недействительны.
                     var destroyedGems = CollectGemsAt(explosionCells);
 
+                    // Регистрируем ДО анимации: после AnimateDestroyCellsAsync
+                    // GemView уничтожаются и gem.GemType становится недействительным.
+                    _levelService.RegisterDestroyedCells(destroyedGems);
+
                     await _boardPresenter.AnimateDestroyCellsAsync(explosionCells, ct);
 
-                    // Регистрируем уничтоженные фишки в целевых счётчиках
-                    _levelService.RegisterDestroyedCells(destroyedGems);
                     // Прямой удар по препятствиям в зоне взрыва бустера
                     _boardService.HitObstaclesDirectly(explosionCells);
 

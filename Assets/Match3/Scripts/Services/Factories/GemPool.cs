@@ -3,7 +3,6 @@
 using System;
 using Match3.Configs;
 using Match3.Views;
-using UnityEngine;
 using UnityEngine.Pool;
 using Zenject;
 
@@ -14,8 +13,8 @@ namespace Match3.Services.Factories
         private readonly GemConfig   _gemConfig;
         private readonly DiContainer _container;
 
-        private ObjectPool<GemView>? _pool;
-        private Transform?           _poolContainer;
+        private ObjectPool<GemView>?       _pool;
+        private UnityEngine.Transform?     _poolContainer;
 
         private const int DefaultCapacity = 81;
         private const int MaxSize         = 200;
@@ -27,21 +26,21 @@ namespace Match3.Services.Factories
             _container = container;
         }
 
-        public void Initialize(Transform poolContainer)
+        public void Initialize(UnityEngine.Transform poolContainer)
         {
             _poolContainer = poolContainer;
 
             _pool = new ObjectPool<GemView>(
                 createFunc:      CreateGem,
                 actionOnGet:     gem => gem.gameObject.SetActive(true),
-                actionOnReturn:  ReturnToPool,
-                actionOnDestroy: gem => Object.Destroy(gem.gameObject),
+                actionOnRelease: ReturnToPool,
+                actionOnDestroy: gem => UnityEngine.Object.Destroy(gem.gameObject),
                 defaultCapacity: DefaultCapacity,
                 maxSize:         MaxSize
             );
         }
 
-        public GemView Get(Transform parent)
+        public GemView Get(UnityEngine.Transform parent)
         {
             var gem = _pool!.Get();
             gem.transform.SetParent(parent, false);

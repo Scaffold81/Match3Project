@@ -14,10 +14,6 @@ using Zenject;
 
 namespace Match3.Services
 {
-    /// <summary>
-    /// Оркестрирует полный игровой цикл внутри Game-сцены:
-    ///   Старт → попап задания → игра → победа/поражение → следующий уровень или награда → карта.
-    /// </summary>
     public sealed class GameFlowService : IInitializable, IDisposable
     {
         private readonly LevelService         _levelService;
@@ -32,6 +28,9 @@ namespace Match3.Services
         private readonly StageRewardPopupView _stageRewardPopupView;
 
         private readonly CompositeDisposable _disposables = new();
+
+        private readonly Subject<Sprite?> _onLevelLost = new();
+        public Observable<Sprite?> OnLevelLost => _onLevelLost;
 
         [Inject]
         public GameFlowService(
@@ -127,28 +126,19 @@ namespace Match3.Services
 
             if (stage == null) { GoToMap(); return; }
 
-            var wasStageCompleted = _progressService.IsStageCompleted(address.CountryIndex, address.StageIndex);
-
             SaveProgress();
 
             var isLastLevel = address.LevelIndex == stage.LevelCount - 1;
 
             if (isLastLevel)
-            {
-                var isFirstCompletion = !wasStageCompleted
-                    && _progressService.IsStageCompleted(address.CountryIndex, address.StageIndex);
-
-                HandleStageComplete(stage, isFirstCompletion);
-            }
+                HandleStageComplete(stage);
             else
-            {
                 HandleNextLevel(address);
-            }
         }
 
-        private void HandleStageComplete(StageConfig stage, bool grantRewards)
+        private void HandleStageComplete(StageConfig stage)
         {
-            if (grantRewards && stage.StageRewards.Length > 0)
+            if (stage.StageRewards.Length > 0)
                 _rewardService.GrantAll(stage.StageRewards);
 
             var rewards     = stage.StageRewards;
@@ -170,7 +160,13 @@ namespace Match3.Services
 
         private void HandleLose()
         {
-            GoToMap();
+            var address = _progressService.CurrentAddress.CurrentValue;
+            var stage   = _worldMapConfig.GetStage(address.CountryIndex, address.StageIndex);
+
+            // Явно фиксируем адрес — гарантируем что рестарт вернётся на этот же уровень
+            _progressService.SetCurrentAddress(address);
+
+            _onLevelLost.OnNext(stage?.SadCharacterSprite);
         }
 
         // ── Прогресс ─────────────────────────────────────────────────────────
@@ -195,6 +191,10 @@ namespace Match3.Services
 
         // ── IDisposable ───────────────────────────────────────────────────────
 
-        public void Dispose() => _disposables.Dispose();
+        public void Dispose()
+        {
+            _onLevelLost.Dispose();
+            _disposables.Dispose();
+        }
     }
 }

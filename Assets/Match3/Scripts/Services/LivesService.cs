@@ -158,6 +158,10 @@ namespace Match3.Services
 
             var raw = PlayerPrefs.GetString(TimestampKey, "0");
             _nextLifeAt = long.TryParse(raw, out var v) ? v : 0;
+
+            // Защита: жизней меньше максимума, но таймер не запущен (сброс/первый запуск)
+            if (_lives.Value < _config.MaxLives && _nextLifeAt == 0)
+                _nextLifeAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + _regenSeconds;
         }
 
         private void SaveAll()

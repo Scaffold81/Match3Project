@@ -282,14 +282,17 @@ ShowTimer(TimeSpan)
 HideTimer()
 ```
 
-### WalletPresenter (ProjectContext, IInitializable, IDisposable)
+### WalletView (MonoBehaviour, SceneContext)
 ```
-Один на всю игру. Подписывается на CoinService + LivesService → обновляет WalletView.
+Живёт в Canvas каждой сцены (StageMap, Game). Presenter не нужен.
+Подписывается напрямую на сервисы в Construct().
 
-Initialize():
-  CoinService.Coins       → SetCoins
-  LivesService.Lives      → SetLives
-  LivesService.TimeUntilNextLife → ShowTimer / HideTimer (Zero = Hide)
+Construct(CoinService, LivesService):
+  Coins             → _coinsText
+  Lives             → _livesText ("current/max")
+  TimeUntilNextLife → _timerContainer + _timerText (Zero = скрыть)
+
+OnDestroy() → _disposables.Dispose()
 ```
 
 ---
@@ -356,8 +359,7 @@ ProgressService    — прогресс карты (PlayerPrefs)
 CoinService        — монеты (PlayerPrefs) ✅ НОВЫЙ
 LivesService       — жизни + таймер (PlayerPrefs) ✅ НОВЫЙ
 RewardService      — выдача наград за уровни (IDisposable)
-WalletPresenter    — связывает кошелёк с WalletView (IInitializable, IDisposable) ✅ НОВЫЙ
-WalletView         — HUD: монеты + жизни + таймер (DontDestroyOnLoad) ✅ НОВЫЙ
+WalletView         — HUD в Canvas сцены, подписка на сервисы через Construct() ✅ НОВЫЙ
 ISceneManagerService → SceneManagerService
 Bootstrapper       — стартует с SceneId.StageMap
 ```
@@ -578,9 +580,9 @@ cellType: 0=Normal  1=Hidden
 - **#7** LevelState enum вынести из LevelService.cs в Core/Enums/
 - UI анимации попапов (DOTween — вылет/исчезновение)
 - Анимация вылета иконок наград в StageRewardPopupView
-- LevelConfig.Rewards[] — пока не выдаются (только StageConfig.StageRewards)
+- LevelConfig.Rewards[] — выдаются через RewardService при первом прохождении уровня ✅
 - Комбо-свопы двух супер-фишек
 - Визуальные эффекты взрывов (частицы)
-- WalletView — создать префаб в Unity (Canvas SO=10, TMP-тексты, _timerContainer)
+- WalletView — добавить в Canvas StageMap и Game сцен, назначить TMP-слоты в инспекторе
 - EconomyConfig — создать ассет через Match3/Configs/Economy и назначить в ProjectConfigInstaller
-- ProjectServiceInstaller — назначить WalletView prefab в инспекторе
+- SceneViewInstaller + StageMapViewInstaller — добавить биндинг WalletView.FromComponentInHierarchy

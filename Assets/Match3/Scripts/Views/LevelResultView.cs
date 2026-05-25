@@ -1,42 +1,118 @@
 #nullable enable
 
+using DG.Tweening;
+using Match3.Core.Enums;
+using Match3.Services;
+using Match3.Services.SceneManagement;
 using R3;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Zenject;
 
 namespace Match3.Views
 {
     /// <summary>
-    /// Показывает панель поражения с кнопками Restart и Back to Map.
-    /// Победа обрабатывается через GameFlowService (попапы задания / награды).
+    /// Панель поражения. Живёт в сцене — биндинг не нужен, Zenject инжектирует через Construct().
+    ///
+    /// Содержимое (референс Pirate Treasures):
+    ///   — Персонаж (грустный)
+    ///   — Текст "Не хватило ходов!"
+    ///   — Количество оставшихся жизней
+    ///   — Кнопка "Попробовать ещё" → TrySpendLife() + перезапуск
+    ///   — Кнопка "На карту"        → выход (жизнь НЕ тратится)
     /// </summary>
     public sealed class LevelResultView : MonoBehaviour
     {
-        [SerializeField] private GameObject _losePanel       = null!;
-        [SerializeField] private Button     _restartButton   = null!;
-        [SerializeField] private Button     _backToMapButton = null!;
+        [Header("Анимация")]
+        [SerializeField] private CanvasGroup _canvasGroup = null!;
 
-        private readonly Subject<Unit> _onRestartClicked   = new();
-        private readonly Subject<Unit> _onBackToMapClicked = new();
+        [Header("Контент")]
+        [SerializeField] private Image    _characterImage = null!;
+        [SerializeField] private TMP_Text _titleText      = null!;
+        [SerializeField] private TMP_Text _livesText      = null!;
 
-        public Observable<Unit> OnRestartClicked   => _onRestartClicked;
-        public Observable<Unit> OnBackToMapClicked => _onBackToMapClicked;
+        [Header("Кнопки")]
+        [SerializeField] private Button _restartButton   = null!;
+        [SerializeField] private Button _backToMapButton = null!;
+
+        private LivesService         _livesService        = null!;
+        private ISceneManagerService _sceneManagerService = null!;
+
+        private readonly CompositeDisposable _disposables = new();
+
+        private Tween? _tween;
+
+        [Inject]
+        public void Construct(
+            GameFlowService      gameFlowService,
+            LivesService         livesService,
+            ISceneManagerService sceneManagerService)
+        {
+            _livesService        = livesService;
+            _sceneManagerService = sceneManagerService;
+
+            gameFlowService.OnLevelLost
+                .Take(1)
+                .Subscribe(sprite => Show(sprite))
+                .AddTo(_disposables);
+
+            livesService.Lives
+                .Subscribe(lives => UpdateLivesText(lives, livesService.MaxLives))
+                .AddTo(_disposables);
+        }
 
         private void Awake()
         {
-            _losePanel.SetActive(false);
-            _restartButton.onClick.AddListener(()   => _onRestartClicked.OnNext(Unit.Default));
-            _backToMapButton.onClick.AddListener(() => _onBackToMapClicked.OnNext(Unit.Default));
+            _canvasGroup.alpha          = 0f;
+            _canvasGroup.interactable   = false;
+            _canvasGroup.blocksRaycasts = false;
+
+            _titleText.text = "Не хватило ходов!";
+
+            _restartButton.onClick.AddListener(OnRestartClicked);
+            _backToMapButton.onClick.AddListener(OnBackToMapClicked);
         }
 
         private void OnDestroy()
         {
-            _onRestartClicked.Dispose();
-            _onBackToMapClicked.Dispose();
+            _tween?.Kill();
+            _disposables.Dispose();
         }
 
-        public void ShowLose() => _losePanel.SetActive(true);
+        // ── Приватное ─────────────────────────────────────────────────────────
 
-        public void Hide() => _losePanel.SetActive(false);
+        private void Show(Sprite? characterSprite)
+        {
+            _characterImage.sprite  = characterSprite;
+            _characterImage.enabled = characterSprite != null;
+
+            _tween?.Kill();
+            _tween = _canvasGroup
+                .DOFade(1f, 0.25f)
+                .SetEase(Ease.OutQuad)
+                .SetLink(gameObject)
+                .OnComplete(() =>
+                {
+                    _canvasGroup.interactable   = true;
+                    _canvasGroup.blocksRaycasts = true;
+                });
+        }
+
+        private void UpdateLivesText(int current, int max)
+        {
+            _livesText.text = $"{current}/{max}";
+        }
+
+        private void OnRestartClicked()
+        {
+            _livesService.TrySpendLife();
+            _sceneManagerService.LoadSceneAsync(SceneId.Game);
+        }
+
+        private void OnBackToMapClicked()
+        {
+            _sceneManagerService.LoadSceneAsync(SceneId.StageMap);
+        }
     }
 }

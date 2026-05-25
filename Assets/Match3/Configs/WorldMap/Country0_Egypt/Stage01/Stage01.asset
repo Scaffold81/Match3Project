@@ -19,12 +19,12 @@ MonoBehaviour:
   - <Type>k__BackingField: 0
     <Boost>k__BackingField: 1
     <Amount>k__BackingField: 5
-  - <Type>k__BackingField: 1
-    <Boost>k__BackingField: 0
-    <Amount>k__BackingField: 100
   - <Type>k__BackingField: 0
     <Boost>k__BackingField: 2
     <Amount>k__BackingField: 1
+  - <Type>k__BackingField: 1
+    <Boost>k__BackingField: 0
+    <Amount>k__BackingField: 100
   <IsBonusStage>k__BackingField: 0
   <SuperPrize>k__BackingField: {fileID: 0}
   <Levels>k__BackingField:
