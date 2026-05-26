@@ -11,22 +11,18 @@ using UnityEngine.UI;
 namespace Match3.Views
 {
     /// <summary>
-    /// Попап с наградой за завершение этапа (все уровни пройдены).
-    /// Спрайты наград передаются снаружи (GameFlowService резолвит через RewardIconConfig).
+    /// Попап завершения страны. Показывается на StageMap после прохождения бонусного этапа.
     /// </summary>
-    public sealed class StageRewardPopupView : MonoBehaviour
+    public sealed class CountryCompletePopupView : MonoBehaviour
     {
         [Header("Корень попапа")]
         [SerializeField] private GameObject  _root        = null!;
         [SerializeField] private CanvasGroup _canvasGroup = null!;
 
-        [Header("Шапка")]
-        [SerializeField] private TMP_Text _titleText = null!;
-
-        [Header("История")]
-        [SerializeField] private GameObject _storyPanel = null!;
-        [SerializeField] private Image      _storyImage = null!;
-        [SerializeField] private TMP_Text   _storyText  = null!;
+        [Header("Контент")]
+        [SerializeField] private Image    _characterImage  = null!;
+        [SerializeField] private TMP_Text _titleText       = null!;
+        [SerializeField] private TMP_Text _countryNameText = null!;
 
         [Header("Награды")]
         [SerializeField] private Transform      _rewardContainer = null!;
@@ -57,14 +53,17 @@ namespace Match3.Views
         // ── Public API ────────────────────────────────────────────────────────
 
         public void Show(
-            string       stageName,
+            string      countryName,
+            Sprite?     characterSprite,
             RewardData[] rewards,
-            Sprite?[]    rewardIcons,
-            StorySlide?  storySlide = null)
+            Sprite?[]   rewardIcons)
         {
-            _titleText.text = $"{stageName} — Этап завершён!";
+            _titleText.text       = "Страна пройдена!";
+            _countryNameText.text = countryName;
 
-            ApplyStory(storySlide);
+            _characterImage.sprite  = characterSprite;
+            _characterImage.enabled = characterSprite != null;
+
             SpawnRewards(rewards, rewardIcons);
 
             _root.SetActive(true);
@@ -72,7 +71,7 @@ namespace Match3.Views
 
             _tween?.Kill();
             _tween = _canvasGroup
-                .DOFade(1f, 0.25f)
+                .DOFade(1f, 0.3f)
                 .SetEase(Ease.OutQuad)
                 .SetLink(gameObject);
         }
@@ -85,26 +84,6 @@ namespace Match3.Views
                 .SetEase(Ease.InQuad)
                 .SetLink(gameObject)
                 .OnComplete(() => _root.SetActive(false));
-        }
-
-        // ── Story ─────────────────────────────────────────────────────────────
-
-        private void ApplyStory(StorySlide? slide)
-        {
-            if (slide == null || !slide.HasContent)
-            {
-                _storyPanel.SetActive(false);
-                return;
-            }
-
-            _storyPanel.SetActive(true);
-            _storyImage.sprite  = slide.Image;
-            _storyImage.enabled = slide.Image != null;
-
-            // TODO: когда подключится локализация — читать по slide.LocalizationId
-            var text        = slide.FallbackText ?? string.Empty;
-            _storyText.text    = text;
-            _storyText.enabled = !string.IsNullOrEmpty(text);
         }
 
         // ── Spawn ─────────────────────────────────────────────────────────────

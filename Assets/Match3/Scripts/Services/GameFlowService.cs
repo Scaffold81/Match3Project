@@ -29,8 +29,8 @@ namespace Match3.Services
 
         private readonly CompositeDisposable _disposables = new();
 
-        private readonly Subject<Sprite?> _onLevelLost = new();
-        public Observable<Sprite?> OnLevelLost => _onLevelLost;
+        private readonly Subject<(Sprite? CharacterSprite, StorySlide? Story)> _onLevelLost = new();
+        public Observable<(Sprite? CharacterSprite, StorySlide? Story)> OnLevelLost => _onLevelLost;
 
         [Inject]
         public GameFlowService(
@@ -104,11 +104,14 @@ namespace Match3.Services
             for (var i = 0; i < objectives.Length; i++)
                 icons[i] = _gemConfig.GetVisual(objectives[i].nodeType)?.Sprite;
 
+            var startStory = stage.StoryConfig?.GetLevelStory(address.LevelIndex)?.StartStory;
+
             _levelTaskPopupView.Show(
                 levelTitle:      $"{stage.StageName} — Уровень {address.LevelIndex + 1}",
                 characterSprite: stage.CharacterSprite,
                 objectives:      objectives,
-                objectiveIcons:  icons);
+                objectiveIcons:  icons,
+                storySlide:      startStory);
         }
 
         private void StartPlay()
@@ -131,22 +134,28 @@ namespace Match3.Services
             var isLastLevel = address.LevelIndex == stage.LevelCount - 1;
 
             if (isLastLevel)
-                HandleStageComplete(stage);
+                HandleStageComplete(stage, address);
             else
                 HandleNextLevel(address);
         }
 
-        private void HandleStageComplete(StageConfig stage)
+        private void HandleStageComplete(StageConfig stage, LevelAddress address)
         {
             if (stage.StageRewards.Length > 0)
                 _rewardService.GrantAll(stage.StageRewards);
+
+            if (stage.IsBonusStage)
+                _progressService.SetPendingCountryReward(address.CountryIndex);
 
             var rewards     = stage.StageRewards;
             var rewardIcons = new UnityEngine.Sprite?[rewards.Length];
             for (var i = 0; i < rewards.Length; i++)
                 rewardIcons[i] = _rewardIconConfig.GetIcon(rewards[i].Type, rewards[i].Boost);
 
-            _stageRewardPopupView.Show(stage.StageName, rewards, rewardIcons);
+            // WinStory берём с последнего уровня этапа
+            var winStory = stage.StoryConfig?.GetLevelStory(address.LevelIndex)?.WinStory;
+
+            _stageRewardPopupView.Show(stage.StageName, rewards, rewardIcons, winStory);
         }
 
         private void HandleNextLevel(LevelAddress current)
@@ -166,7 +175,9 @@ namespace Match3.Services
             // Явно фиксируем адрес — гарантируем что рестарт вернётся на этот же уровень
             _progressService.SetCurrentAddress(address);
 
-            _onLevelLost.OnNext(stage?.SadCharacterSprite);
+            var loseStory = stage?.StoryConfig?.GetLevelStory(address.LevelIndex)?.LoseStory;
+
+            _onLevelLost.OnNext((stage?.SadCharacterSprite, loseStory));
         }
 
         // ── Прогресс ─────────────────────────────────────────────────────────

@@ -35,6 +35,7 @@ WorldMapConfig
   └── CountryConfig[5]           — 5 стран (Egypt, Greece, China, Maya, India)
         └── StageConfig[10]      — 9 обычных + 1 бонусный этап на страну
               ├── IsBonusStage   — последний (индекс 9) — бонусный, даёт SuperPrize
+              ├── StoryConfig?   — опциональная история этапа (StageStoryConfig)
               └── LevelConfig[3] — 3 уровня на этап
 
 LevelAddress { CountryIndex, StageIndex, LevelIndex }
@@ -98,10 +99,11 @@ CountryNodeView        — заголовок страны (300×72px)
   countryIndex
   Refresh(icon, countryName, sectionColor, isUnlocked)
 
-LevelSelectPopupView   — попап выбора уровня (3 кнопки)
-  Show(stageName, starsPerLevel[], isUnlocked[])
+LevelSelectPopupView   — попап выбора уровня
+  Show(stageName, characterSprite, objectives, objectiveIcons,
+       stageRewards, rewardIcons, storySlide?)   ← storySlide опциональный
   Hide()
-  OnLevelClicked : Observable<int>
+  OnPlayClicked  : Observable<Unit>
   OnCloseClicked : Observable<Unit>
 ```
 
@@ -110,7 +112,8 @@ LevelSelectPopupView   — попап выбора уровня (3 кнопки)
 Initialize():
   RefreshStages + RefreshCountries
   Подписка на StageNodeView.OnClicked → открыть попап
-  Подписка на LevelSelectPopupView.OnLevelClicked → SetCurrentAddress + LoadScene(Game)
+    → передаёт stage.StoryConfig?.StageSelectStory в LevelSelectPopupView.Show()
+  Подписка на LevelSelectPopupView.OnPlayClicked → SetCurrentAddress + LoadScene(Game)
   Подписка на OnCloseClicked → Hide
   ScrollToCurrentProgress()
 ```
@@ -136,7 +139,7 @@ GameLoopController.Initialize()
   → Подготовка доски (без включения ввода)
 
 GameFlowService.Initialize()
-  → Показать LevelTaskPopupView (задание уровня)
+  → Показать LevelTaskPopupView (задание уровня + StartStory если есть)
   → Игрок нажимает Play
   → GameLoopController.EnableInput() → игра началась
 
@@ -144,12 +147,13 @@ GameFlowService.Initialize()
   → GameFlowService.HandleWin()
   → SaveProgress()
   → Последний уровень этапа?
-      ДА  → HandleStageComplete → StageRewardPopupView.Show() → Claim → LoadScene(StageMap)
+      ДА  → HandleStageComplete → StageRewardPopupView.Show(+ WinStory) → Claim → LoadScene(StageMap)
       НЕТ → HandleNextLevel → SetCurrentAddress(next) → LoadScene(Game)
 
 Поражение (LevelService.OnLevelLost):
   → GameFlowService.HandleLose()
-  → LevelResultView.ShowLose()
+  → _onLevelLost.OnNext((SadCharacterSprite, LoseStory))
+  → LevelResultView показывает панель поражения + LoseStory
   → Restart → LoadScene(Game)
   → Back to Map → LoadScene(StageMap)
 ```
@@ -158,46 +162,100 @@ GameFlowService.Initialize()
 ```
 Оркестрирует весь игровой цикл внутри Game-сцены.
 
-Initialize():
-  Подписки на: OnLevelWon, OnLevelLost, OnRestartClicked,
-               OnBackToMapClicked, OnClaimClicked, OnPlayClicked
-  ShowCurrentLevelTask()
+OnLevelLost : Observable<(Sprite? CharacterSprite, StorySlide? Story)>
+  — изменено с Observable<Sprite?> для передачи истории поражения
 
-HandleWin():
-  1. Проверяет wasStageCompleted ДО SaveProgress
-  2. SaveProgress() → StarCalculator.Calculate(movesLeft, moveLimit)
-  3. Последний уровень? → HandleStageComplete | HandleNextLevel
+ShowCurrentLevelTask():
+  → читает stage.StoryConfig?.GetLevelStory(levelIndex)?.StartStory
+  → передаёт в LevelTaskPopupView.Show()
 
-HandleStageComplete(stage, grantRewards):
-  if grantRewards → RewardService.GrantAll(stage.StageRewards)
-  StageRewardPopupView.Show()
+HandleStageComplete(stage, address):
+  → читает stage.StoryConfig?.GetLevelStory(levelIndex)?.WinStory
+  → передаёт в StageRewardPopupView.Show()
 
-HandleNextLevel(address):
-  ProgressService.SetCurrentAddress(next) → LoadScene(Game)
+HandleLose():
+  → читает stage.StoryConfig?.GetLevelStory(levelIndex)?.LoseStory
+  → публикует через _onLevelLost
 ```
 
 ### LevelTaskPopupView (View, MonoBehaviour)
 ```
-Show(stageName, levelIndex, objectives[])  — показывает задание уровня
+Show(levelTitle, characterSprite, objectives, objectiveIcons, storySlide?)
 Hide()
 OnPlayClicked : Observable<Unit>
 
-Форматирует ObjectiveData[] в читаемый текст (визуализация — ответственность View).
+Story-блок скрыт если storySlide == null или !HasContent.
 ```
 
 ### StageRewardPopupView (View, MonoBehaviour)
 ```
-Show(stageName, rewards[])  — показывает награды за этап
+Show(stageName, rewards, rewardIcons, storySlide?)
 Hide()
 OnClaimClicked : Observable<Unit>
 ```
 
 ### LevelResultView (View, MonoBehaviour) — только поражение
 ```
-ShowLose()   — показывает панель поражения
-Hide()
+Подписывается на GameFlowService.OnLevelLost : Observable<(Sprite?, StorySlide?)>
+Показывает характер + story-блок (если есть)
 OnRestartClicked   : Observable<Unit>
 OnBackToMapClicked : Observable<Unit>
+```
+
+---
+
+## 📖 Система историй (Story) ✅ РЕАЛИЗОВАНО
+
+### Модели
+```
+StorySlide (Core/Models, Serializable)
+  Image?           : Sprite       — картинка слайда
+  LocalizationId?  : string       — ID для системы локализации
+  FallbackText?    : string       — текст до подключения локализации
+  HasContent       : bool         — true если хоть одно поле заполнено
+
+LevelStoryData (Core/Models, Serializable)
+  StartStory?  : StorySlide  — перед стартом уровня (LevelTaskPopupView)
+  WinStory?    : StorySlide  — победа на последнем уровне (StageRewardPopupView)
+  LoseStory?   : StorySlide  — поражение (LevelResultView)
+```
+
+### Конфиг
+```
+StageStoryConfig (Configs, ScriptableObject)
+  menuName: "Match3/Story/Stage Story"
+
+  StageSelectStory? : StorySlide      — экран выбора этапа (LevelSelectPopupView)
+  LevelStories[3]   : LevelStoryData  — по индексу уровня
+
+  GetLevelStory(levelIndex) → LevelStoryData?
+```
+
+### Подключение к StageConfig
+```
+StageConfig.StoryConfig? : StageStoryConfig   — null = этап без истории
+```
+
+### Story-блок во View
+```
+Каждый из 4 View содержит:
+  [SerializeField] GameObject _storyPanel   — контейнер (скрыт по умолчанию)
+  [SerializeField] Image      _storyImage   — картинка
+  [SerializeField] TMP_Text   _storyText    — текст
+
+ApplyStory(StorySlide? slide):
+  null || !HasContent → _storyPanel.SetActive(false)
+  иначе              → заполняет Image + Text, SetActive(true)
+  // TODO: при подключении локализации читать по LocalizationId вместо FallbackText
+```
+
+### Флоу данных
+```
+StageMapPresenter → LevelSelectPopupView.Show(..., stage.StoryConfig?.StageSelectStory)
+GameFlowService   → LevelTaskPopupView.Show(..., storyConfig?.GetLevelStory(idx)?.StartStory)
+GameFlowService   → StageRewardPopupView.Show(..., storyConfig?.GetLevelStory(idx)?.WinStory)
+GameFlowService   → _onLevelLost.OnNext((sadSprite, storyConfig?.GetLevelStory(idx)?.LoseStory))
+LevelResultView   ← подписывается на OnLevelLost, применяет LoseStory
 ```
 
 ---
@@ -394,11 +452,14 @@ ProcessTurnResult()                  — всегда вызывается по�
 ## 📦 Configs
 
 ```
-LevelConfig    — MoveLimit, AllowedNodeTypes[], Objectives[], Grid[], Rewards[]
-StageConfig    — StageName, StageIcon, IsBonusStage, SuperPrize, StageRewards[], Levels[3]
-CountryConfig  — CountryName, CountryIcon, SectionColor, Stages[10]
-WorldMapConfig — Countries[5]
-EconomyConfig  — MaxLives, LifeRegenSeconds, LivesPurchasePrice, LivesPurchaseAmount, InitialCoins ✅ НОВЫЙ
+LevelConfig       — MoveLimit, AllowedNodeTypes[], Objectives[], Grid[], Rewards[]
+StageConfig       — StageName, StageIcon, IsBonusStage, SuperPrize, StageRewards[],
+                    StoryConfig?, Levels[3]
+StageStoryConfig  — StageSelectStory?, LevelStories[3]  ✅ НОВЫЙ
+CountryConfig     — CountryName, CountryIcon, SectionColor, Stages[10]
+WorldMapConfig    — Countries[5]
+EconomyConfig     — MaxLives, LifeRegenSeconds, LivesPurchasePrice,
+                    LivesPurchaseAmount, InitialCoins ✅ НОВЫЙ
 ```
 
 ---
@@ -410,12 +471,15 @@ Assets/Match3/Scripts/
 ├── Core/
 │   ├── Enums/          NodeType, SuperGemType, BoostType, CellType, SceneId, RewardType
 │   ├── Models/         BoardCell, CellData, ObjectiveData, LevelAddress, RewardData
+│   │                   StorySlide ✅ НОВЫЙ
+│   │                   LevelStoryData ✅ НОВЫЙ
 │   ├── BoostTypeExtensions.cs  ← extension ToSuperGemType()
 │   └── GemMatch.cs, GemState.cs, IGemView.cs
 ├── Configs/
 │   ├── GemConfig, BoardConfig, AnimationConfig, RewardIconConfig
 │   ├── LevelConfig, LevelConfigRepository
 │   ├── StageConfig, WorldMapConfig, CountryConfig
+│   ├── StageStoryConfig  ✅ НОВЫЙ
 │   └── EconomyConfig  ✅ НОВЫЙ
 ├── Controllers/
 │   ├── Bootstrapper
@@ -586,3 +650,5 @@ cellType: 0=Normal  1=Hidden
 - WalletView — добавить в Canvas StageMap и Game сцен, назначить TMP-слоты в инспекторе
 - EconomyConfig — создать ассет через Match3/Configs/Economy и назначить в ProjectConfigInstaller
 - SceneViewInstaller + StageMapViewInstaller — добавить биндинг WalletView.FromComponentInHierarchy
+- StageStoryConfig — назначить в нужные StageConfig через инспектор после создания ассетов
+- Story TODO: при подключении локализации заменить FallbackText на чтение по LocalizationId во всех ApplyStory()

@@ -20,6 +20,7 @@ namespace Match3.Installers
             Container.BindInstance(_worldMapConfig).AsSingle();
             Container.Bind<StageMapView>().FromComponentInHierarchy().AsSingle();
             Container.Bind<LevelSelectPopupView>().FromComponentInHierarchy().AsSingle();
+            Container.Bind<CountryCompletePopupView>().FromComponentInHierarchy().AsSingle();
         }
     }
 }

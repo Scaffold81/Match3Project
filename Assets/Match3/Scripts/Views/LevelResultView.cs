@@ -2,6 +2,7 @@
 
 using DG.Tweening;
 using Match3.Core.Enums;
+using Match3.Core.Models;
 using Match3.Services;
 using Match3.Services.SceneManagement;
 using R3;
@@ -32,6 +33,11 @@ namespace Match3.Views
         [SerializeField] private TMP_Text _titleText      = null!;
         [SerializeField] private TMP_Text _livesText      = null!;
 
+        [Header("История")]
+        [SerializeField] private GameObject _storyPanel = null!;
+        [SerializeField] private Image      _storyImage = null!;
+        [SerializeField] private TMP_Text   _storyText  = null!;
+
         [Header("Кнопки")]
         [SerializeField] private Button _restartButton   = null!;
         [SerializeField] private Button _backToMapButton = null!;
@@ -54,7 +60,7 @@ namespace Match3.Views
 
             gameFlowService.OnLevelLost
                 .Take(1)
-                .Subscribe(sprite => Show(sprite))
+                .Subscribe(payload => Show(payload.CharacterSprite, payload.Story))
                 .AddTo(_disposables);
 
             livesService.Lives
@@ -82,10 +88,12 @@ namespace Match3.Views
 
         // ── Приватное ─────────────────────────────────────────────────────────
 
-        private void Show(Sprite? characterSprite)
+        private void Show(Sprite? characterSprite, StorySlide? storySlide)
         {
             _characterImage.sprite  = characterSprite;
             _characterImage.enabled = characterSprite != null;
+
+            ApplyStory(storySlide);
 
             _tween?.Kill();
             _tween = _canvasGroup
@@ -97,6 +105,24 @@ namespace Match3.Views
                     _canvasGroup.interactable   = true;
                     _canvasGroup.blocksRaycasts = true;
                 });
+        }
+
+        private void ApplyStory(StorySlide? slide)
+        {
+            if (slide == null || !slide.HasContent)
+            {
+                _storyPanel.SetActive(false);
+                return;
+            }
+
+            _storyPanel.SetActive(true);
+            _storyImage.sprite  = slide.Image;
+            _storyImage.enabled = slide.Image != null;
+
+            // TODO: когда подключится локализация — читать по slide.LocalizationId
+            var text        = slide.FallbackText ?? string.Empty;
+            _storyText.text    = text;
+            _storyText.enabled = !string.IsNullOrEmpty(text);
         }
 
         private void UpdateLivesText(int current, int max)

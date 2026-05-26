@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Match3.Core.Models;
 using UnityEngine;
 
 namespace Match3.Configs
@@ -23,6 +24,14 @@ namespace Match3.Configs
         [field: SerializeField]
         [field: Tooltip("Фоновый цвет или спрайт для секции этой страны на карте")]
         public Color SectionColor { get; private set; } = Color.white;
+
+        [field: SerializeField]
+        [field: Tooltip("Персонаж на попапе завершения страны")]
+        public Sprite? CharacterSprite { get; private set; }
+
+        [field: SerializeField]
+        [field: Tooltip("Награды за полное прохождение страны (бонусный этап пройден).")]
+        public RewardData[] CountryRewards { get; private set; } = Array.Empty<RewardData>();
 
         [field: SerializeField]
         [field: Tooltip("9 этапов страны. Всегда ровно 9.")]

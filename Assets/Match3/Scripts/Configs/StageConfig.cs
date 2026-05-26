@@ -26,6 +26,10 @@ namespace Match3.Configs
         public Sprite? SadCharacterSprite { get; private set; }
 
         [field: SerializeField]
+        [field: Tooltip("Истории для экранов этапа. Null — экраны без истории.")]
+        public StageStoryConfig? StoryConfig { get; private set; }
+
+        [field: SerializeField]
         [field: Tooltip("Награды за прохождение всех 3 уровней этапа. Выдаются через RewardService.")]
         public RewardData[] StageRewards { get; private set; } = Array.Empty<RewardData>();
 

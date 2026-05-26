@@ -16,13 +16,15 @@ namespace Match3.Presenters
 {
     public sealed class StageMapPresenter : IInitializable, IDisposable
     {
-        private readonly WorldMapConfig       _worldMapConfig;
-        private readonly ProgressService      _progressService;
-        private readonly ISceneManagerService _sceneManagerService;
-        private readonly StageMapView         _stageMapView;
-        private readonly LevelSelectPopupView _levelSelectPopupView;
-        private readonly GemConfig            _gemConfig;
-        private readonly RewardIconConfig     _rewardIconConfig;
+        private readonly WorldMapConfig           _worldMapConfig;
+        private readonly ProgressService         _progressService;
+        private readonly RewardService           _rewardService;
+        private readonly ISceneManagerService    _sceneManagerService;
+        private readonly StageMapView            _stageMapView;
+        private readonly LevelSelectPopupView    _levelSelectPopupView;
+        private readonly CountryCompletePopupView _countryCompletePopupView;
+        private readonly GemConfig               _gemConfig;
+        private readonly RewardIconConfig        _rewardIconConfig;
 
         private readonly CompositeDisposable _disposables = new();
 
@@ -32,21 +34,25 @@ namespace Match3.Presenters
 
         [Inject]
         public StageMapPresenter(
-            WorldMapConfig        worldMapConfig,
-            ProgressService       progressService,
-            ISceneManagerService  sceneManagerService,
-            StageMapView          stageMapView,
-            LevelSelectPopupView  levelSelectPopupView,
-            GemConfig             gemConfig,
-            RewardIconConfig      rewardIconConfig)
+            WorldMapConfig            worldMapConfig,
+            ProgressService           progressService,
+            RewardService             rewardService,
+            ISceneManagerService      sceneManagerService,
+            StageMapView              stageMapView,
+            LevelSelectPopupView      levelSelectPopupView,
+            CountryCompletePopupView  countryCompletePopupView,
+            GemConfig                 gemConfig,
+            RewardIconConfig          rewardIconConfig)
         {
-            _worldMapConfig       = worldMapConfig;
-            _progressService      = progressService;
-            _sceneManagerService  = sceneManagerService;
-            _stageMapView         = stageMapView;
-            _levelSelectPopupView = levelSelectPopupView;
-            _gemConfig            = gemConfig;
-            _rewardIconConfig     = rewardIconConfig;
+            _worldMapConfig           = worldMapConfig;
+            _progressService          = progressService;
+            _rewardService            = rewardService;
+            _sceneManagerService      = sceneManagerService;
+            _stageMapView             = stageMapView;
+            _levelSelectPopupView     = levelSelectPopupView;
+            _countryCompletePopupView = countryCompletePopupView;
+            _gemConfig                = gemConfig;
+            _rewardIconConfig         = rewardIconConfig;
         }
 
         public void Initialize()
@@ -55,6 +61,7 @@ namespace Match3.Presenters
             SubscribeNodes();
             SubscribePopup();
             ScrollToCurrentProgress();
+            CheckPendingCountryReward();
         }
 
         // ── Refresh ──────────────────────────────────────────────────────────
@@ -93,6 +100,11 @@ namespace Match3.Presenters
             _levelSelectPopupView.OnCloseClicked
                 .Subscribe(_ => _levelSelectPopupView.Hide())
                 .AddTo(_disposables);
+
+            _countryCompletePopupView.OnClaimClicked
+                .Take(1)
+                .Subscribe(_ => _countryCompletePopupView.Hide())
+                .AddTo(_disposables);
         }
 
         // ── Логика ───────────────────────────────────────────────────────────
@@ -128,7 +140,8 @@ namespace Match3.Presenters
                 objectives:      objectives,
                 objectiveIcons:  objectiveIcons,
                 stageRewards:    rewards,
-                rewardIcons:     rewardIcons);
+                rewardIcons:     rewardIcons,
+                storySlide:      stage.StoryConfig?.StageSelectStory);
         }
 
         private void OnPlayClicked()
@@ -137,6 +150,34 @@ namespace Match3.Presenters
             _progressService.SetCurrentAddress(address);
             _levelSelectPopupView.Hide();
             _sceneManagerService.LoadSceneAsync(SceneId.Game);
+        }
+
+        // ── Награда за страну ─────────────────────────────────────────────────────────
+
+        private void CheckPendingCountryReward()
+        {
+            var countryIndex = _progressService.GetPendingCountryReward();
+            if (countryIndex < 0) return;
+
+            var country = _worldMapConfig.GetCountry(countryIndex);
+            if (country == null) return;
+
+            _progressService.ClearPendingCountryReward();
+
+            if (country.CountryRewards.Length > 0)
+                _rewardService.GrantAll(country.CountryRewards);
+
+            var rewardIcons = new Sprite?[country.CountryRewards.Length];
+            for (var i = 0; i < country.CountryRewards.Length; i++)
+                rewardIcons[i] = _rewardIconConfig.GetIcon(
+                    country.CountryRewards[i].Type,
+                    country.CountryRewards[i].Boost);
+
+            _countryCompletePopupView.Show(
+                country.CountryName,
+                country.CharacterSprite,
+                country.CountryRewards,
+                rewardIcons);
         }
 
         // ── Агрегация целей этапа ─────────────────────────────────────────────

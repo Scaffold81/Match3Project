@@ -25,6 +25,11 @@ namespace Match3.Views
         [SerializeField] private TMP_Text _levelLabel     = null!;
         [SerializeField] private Image    _characterImage = null!;
 
+        [Header("История")]
+        [SerializeField] private GameObject _storyPanel = null!;
+        [SerializeField] private Image      _storyImage = null!;
+        [SerializeField] private TMP_Text   _storyText  = null!;
+
         [Header("Цели")]
         [SerializeField] private Transform         _objectiveContainer = null!;
         [SerializeField] private ObjectiveItemView _objectivePrefab    = null!;
@@ -64,12 +69,14 @@ namespace Match3.Views
             string          levelTitle,
             Sprite?         characterSprite,
             ObjectiveData[] objectives,
-            Sprite?[]       objectiveIcons)
+            Sprite?[]       objectiveIcons,
+            StorySlide?     storySlide = null)
         {
             _levelLabel.text        = levelTitle;
             _characterImage.sprite  = characterSprite;
             _characterImage.enabled = characterSprite != null;
 
+            ApplyStory(storySlide);
             SpawnObjectives(objectives, objectiveIcons);
 
             _interactable      = false;
@@ -93,6 +100,26 @@ namespace Match3.Views
                 .SetEase(Ease.InQuad)
                 .SetLink(gameObject)
                 .OnComplete(() => _root.SetActive(false));
+        }
+
+        // ── Story ─────────────────────────────────────────────────────────────
+
+        private void ApplyStory(StorySlide? slide)
+        {
+            if (slide == null || !slide.HasContent)
+            {
+                _storyPanel.SetActive(false);
+                return;
+            }
+
+            _storyPanel.SetActive(true);
+            _storyImage.sprite  = slide.Image;
+            _storyImage.enabled = slide.Image != null;
+
+            // TODO: когда подключится локализация — читать по slide.LocalizationId
+            var text        = slide.FallbackText ?? string.Empty;
+            _storyText.text    = text;
+            _storyText.enabled = !string.IsNullOrEmpty(text);
         }
 
         // ── Приватное ─────────────────────────────────────────────────────────

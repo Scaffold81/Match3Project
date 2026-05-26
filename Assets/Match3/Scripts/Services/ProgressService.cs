@@ -21,8 +21,9 @@ namespace Match3.Services
     /// </summary>
     public sealed class ProgressService : IDisposable
     {
-        private const string StarsKey   = "progress_stars_{0}_{1}_{2}";
-        private const string CurrentKey = "progress_current";
+        private const string StarsKey          = "progress_stars_{0}_{1}_{2}";
+        private const string CurrentKey        = "progress_current";
+        private const string PendingCountryKey = "progress_pending_country";
 
         private const int RegularStageCount = 9;  // индексы 0-8
         private const int BonusStageIndex   = 9;  // индекс бонусного этапа
@@ -145,6 +146,26 @@ namespace Match3.Services
             if (!IsStageUnlocked(countryIdx, stageIdx)) return false;
             if (levelIdx == 0) return true;
             return GetStars(countryIdx, stageIdx, levelIdx - 1) > 0;
+        }
+
+        // ── Ожидающая награда за страну ───────────────────────────────────────────
+
+        /// <summary>
+        /// Индекс страны для отображения попапа завершения на StageMap. -1 = нет.
+        /// </summary>
+        public int GetPendingCountryReward() =>
+            PlayerPrefs.GetInt(PendingCountryKey, -1);
+
+        public void SetPendingCountryReward(int countryIndex)
+        {
+            PlayerPrefs.SetInt(PendingCountryKey, countryIndex);
+            PlayerPrefs.Save();
+        }
+
+        public void ClearPendingCountryReward()
+        {
+            PlayerPrefs.DeleteKey(PendingCountryKey);
+            PlayerPrefs.Save();
         }
 
         // ── Текущий адрес ────────────────────────────────────────────────────
