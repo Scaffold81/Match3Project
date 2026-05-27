@@ -14,6 +14,7 @@ namespace Match3.Installers
         [SerializeField] private WorldMapConfig   _worldMapConfig   = null!;
         [SerializeField] private RewardIconConfig _rewardIconConfig = null!;
         [SerializeField] private EconomyConfig    _economyConfig    = null!;
+        [SerializeField] private AdConfig         _adConfig         = null!;
 
         public override void InstallBindings()
         {
@@ -25,6 +26,7 @@ namespace Match3.Installers
             Container.BindInstance(_worldMapConfig).AsSingle();
             Container.BindInstance(_rewardIconConfig).AsSingle();
             Container.BindInstance(_economyConfig).AsSingle();
+            Container.BindInstance(_adConfig).AsSingle();
         }
 
         private void ValidateConfigs()
@@ -41,6 +43,8 @@ namespace Match3.Installers
                 Debug.LogError("ProjectConfigInstaller: RewardIconConfig is not assigned");
             if (_economyConfig == null)
                 Debug.LogError("ProjectConfigInstaller: EconomyConfig is not assigned");
+            if (_adConfig == null)
+                Debug.LogError("ProjectConfigInstaller: AdConfig is not assigned");
         }
     }
 }

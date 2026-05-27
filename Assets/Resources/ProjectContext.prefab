@@ -44,7 +44,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ad1361034f514347966f7d8c19e6ed9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Installers.ProjectServiceInstaller
-  _walletViewPrefab: {fileID: 0}
 --- !u!1 &7338837353135720520
 GameObject:
   m_ObjectHideFlags: 0
@@ -159,3 +158,4 @@ MonoBehaviour:
   _worldMapConfig: {fileID: 11400000, guid: 898a14c3ecca4da4c94a95fafa65c973, type: 2}
   _rewardIconConfig: {fileID: 11400000, guid: 83b90e8048b5b4b4b894439dc7b4d612, type: 2}
   _economyConfig: {fileID: 11400000, guid: 44ace1de3fb770f47bcd13948b8147b7, type: 2}
+  _adConfig: {fileID: 11400000, guid: 9a9fb5527eacd5f419803ccf04f53d18, type: 2}

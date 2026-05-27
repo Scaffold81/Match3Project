@@ -14,6 +14,8 @@ public enum CellType     { Normal, Hidden }
 public enum LevelState   { Idle, Playing, Won, Lost }  // определён внутри LevelService.cs
 public enum SceneId      { Bootstrap, StageMap, Game }
 public enum RewardType   { Boost, Coins, Lives }
+public enum AdPlacementId { ContinueGame, RewardedLives, RewardedCoins, RewardedBoost, Interstitial }  // ✅ НОВЫЙ
+public enum AdFailReason  { None, NoFill, NetworkError, Timeout, Unknown }                             // ✅ НОВЫЙ
 ```
 
 ### Утилиты
@@ -146,6 +148,7 @@ GameFlowService.Initialize()
 Победа (LevelService.OnLevelWon):
   → GameFlowService.HandleWin()
   → SaveProgress()
+  → AdService.RegisterLevelCompleted() + TryShowInterstitialAsync()
   → Последний уровень этапа?
       ДА  → HandleStageComplete → StageRewardPopupView.Show(+ WinStory) → Claim → LoadScene(StageMap)
       НЕТ → HandleNextLevel → SetCurrentAddress(next) → LoadScene(Game)
@@ -154,6 +157,7 @@ GameFlowService.Initialize()
   → GameFlowService.HandleLose()
   → _onLevelLost.OnNext((SadCharacterSprite, LoseStory))
   → LevelResultView показывает панель поражения + LoseStory
+  → "Продолжить" → AdService.ShowRewarded(ContinueGame) → +5 ходов
   → Restart → LoadScene(Game)
   → Back to Map → LoadScene(StageMap)
 ```
@@ -198,8 +202,9 @@ OnClaimClicked : Observable<Unit>
 ```
 Подписывается на GameFlowService.OnLevelLost : Observable<(Sprite?, StorySlide?)>
 Показывает характер + story-блок (если есть)
-OnRestartClicked   : Observable<Unit>
-OnBackToMapClicked : Observable<Unit>
+OnRestartClicked      : Observable<Unit>
+OnBackToMapClicked    : Observable<Unit>
+OnContinueClicked     : Observable<Unit>  ← кнопка "Продолжить за рекламу"
 ```
 
 ---
@@ -355,6 +360,76 @@ OnDestroy() → _disposables.Dispose()
 
 ---
 
+## 📺 Реклама (Ads) ✅ РЕАЛИЗОВАНО
+
+### AdConfig (ProjectContext, ScriptableObject)
+```
+Путь: Match3/Configs/Ad
+
+AppIdAndroid                  : string
+AppIdIos                      : string
+InterstitialCooldownSeconds   : int  = 30
+MinLevelsBetweenInterstitials : int  = 3
+Placements                    : AdPlacementEntry[]
+
+AdPlacementEntry (Serializable):
+  PlacementId   : AdPlacementId   — enum: ContinueGame, RewardedLives, RewardedCoins, RewardedBoost, Interstitial
+  UnitIdAndroid : string
+  UnitIdIos     : string
+  Rewards       : RewardData[]    — что выдаётся после просмотра
+```
+
+### AdResult (Core/Models, readonly struct)
+```
+IsRewarded : bool
+FailReason : AdFailReason  — None, NoFill, NetworkError, Timeout, Unknown
+
+AdResult.Success()       — пользователь досмотрел
+AdResult.Skip()          — пользователь закрыл
+AdResult.Fail(reason)    — ошибка
+```
+
+### IAdProvider (интерфейс)
+```
+IsRewardedReady(unitId)     → bool
+IsInterstitialReady(unitId) → bool
+InitializeAsync(appId, ct)  → UniTask
+ShowRewardedAsync(unitId, ct)     → UniTask<AdResult>
+ShowInterstitialAsync(unitId, ct) → UniTask<bool>
+
+Реализации:
+  MockAdProvider   — для разработки (имитирует показ с задержкой 500мс)
+  // AdMobProvider — подключить при интеграции реального SDK
+```
+
+### AdService (ProjectContext, IInitializable, IDisposable)
+```
+ShowRewardedAsync(placementId, ct) → UniTask<AdResult>
+  — берёт unitId из AdConfig по платформе
+  — проверяет IsRewardedReady
+  — после успеха вызывает RewardService.GrantAll(entry.Rewards)
+
+TryShowInterstitialAsync(ct) → UniTask<bool>
+  — проверяет cooldown (InterstitialCooldownSeconds)
+  — проверяет MinLevelsBetweenInterstitials
+  — показывает если оба условия выполнены
+
+RegisterLevelCompleted()
+  — инкрементирует счётчик уровней для interstitial
+  — вызывать из GameFlowService после победы
+```
+
+### Плейсменты (референс: Сокровища пиратов)
+```
+ContinueGame   — экран поражения, кнопка "Продолжить" (+5 ходов)
+RewardedLives  — WalletView / магазин жизней
+RewardedCoins  — магазин / ежедневный бонус
+RewardedBoost  — магазин бустов
+Interstitial   — автоматически после победы/поражения (с cooldown)
+```
+
+---
+
 ## 💎 Супер-фишки
 
 | Тип | Триггер матча | Эффект |
@@ -414,10 +489,11 @@ Create(nodeType, parent, name) → GemView
 ```
 InventoryService   — бусты (PlayerPrefs)
 ProgressService    — прогресс карты (PlayerPrefs)
-CoinService        — монеты (PlayerPrefs) ✅ НОВЫЙ
-LivesService       — жизни + таймер (PlayerPrefs) ✅ НОВЫЙ
+CoinService        — монеты (PlayerPrefs)
+LivesService       — жизни + таймер (PlayerPrefs)
 RewardService      — выдача наград за уровни (IDisposable)
-WalletView         — HUD в Canvas сцены, подписка на сервисы через Construct() ✅ НОВЫЙ
+AdService          — реклама (IInitializable, IDisposable) ✅ НОВЫЙ
+WalletView         — HUD в Canvas сцены, подписка на сервисы через Construct()
 ISceneManagerService → SceneManagerService
 Bootstrapper       — стартует с SceneId.StageMap
 ```
@@ -455,11 +531,12 @@ ProcessTurnResult()                  — всегда вызывается по�
 LevelConfig       — MoveLimit, AllowedNodeTypes[], Objectives[], Grid[], Rewards[]
 StageConfig       — StageName, StageIcon, IsBonusStage, SuperPrize, StageRewards[],
                     StoryConfig?, Levels[3]
-StageStoryConfig  — StageSelectStory?, LevelStories[3]  ✅ НОВЫЙ
+StageStoryConfig  — StageSelectStory?, LevelStories[3]
 CountryConfig     — CountryName, CountryIcon, SectionColor, Stages[10]
 WorldMapConfig    — Countries[5]
 EconomyConfig     — MaxLives, LifeRegenSeconds, LivesPurchasePrice,
-                    LivesPurchaseAmount, InitialCoins ✅ НОВЫЙ
+                    LivesPurchaseAmount, InitialCoins
+AdConfig          — AppIds, Cooldowns, Placements[] (PlacementId + UnitIds + Rewards) ✅ НОВЫЙ
 ```
 
 ---
@@ -470,31 +547,33 @@ EconomyConfig     — MaxLives, LifeRegenSeconds, LivesPurchasePrice,
 Assets/Match3/Scripts/
 ├── Core/
 │   ├── Enums/          NodeType, SuperGemType, BoostType, CellType, SceneId, RewardType
+│   │                   AdPlacementId ✅ НОВЫЙ
+│   │                   AdFailReason  ✅ НОВЫЙ (в том же файле AdPlacementId.cs)
 │   ├── Models/         BoardCell, CellData, ObjectiveData, LevelAddress, RewardData
-│   │                   StorySlide ✅ НОВЫЙ
-│   │                   LevelStoryData ✅ НОВЫЙ
+│   │                   StorySlide, LevelStoryData
+│   │                   AdResult ✅ НОВЫЙ
 │   ├── BoostTypeExtensions.cs  ← extension ToSuperGemType()
 │   └── GemMatch.cs, GemState.cs, IGemView.cs
 ├── Configs/
 │   ├── GemConfig, BoardConfig, AnimationConfig, RewardIconConfig
 │   ├── LevelConfig, LevelConfigRepository
 │   ├── StageConfig, WorldMapConfig, CountryConfig
-│   ├── StageStoryConfig  ✅ НОВЫЙ
-│   └── EconomyConfig  ✅ НОВЫЙ
+│   ├── StageStoryConfig, EconomyConfig
+│   └── AdConfig ✅ НОВЫЙ
 ├── Controllers/
 │   ├── Bootstrapper
-│   └── GameLoopController    ← EnableInput() вызывается GameFlowService
+│   └── GameLoopController
 ├── Services/
 │   ├── Board/          BoardService
 │   ├── Swap/           SwapService
 │   ├── Layer/          LayerService
-│   ├── Level/          LevelService  (содержит LevelState enum)
+│   ├── Level/          LevelService
 │   ├── Factories/      GemFactory
+│   ├── Ads/            IAdProvider, MockAdProvider, AdService ✅ НОВАЯ ПАПКА
 │   ├── HintService, BoostService
-│   ├── GameFlowService          ← оркестратор игрового цикла (SceneContext)
-│   ├── InventoryService, ProgressService, RewardService  ← ProjectContext
-│   ├── CoinService              ← ProjectContext ✅ НОВЫЙ
-│   ├── LivesService             ← ProjectContext ✅ НОВЫЙ
+│   ├── GameFlowService
+│   ├── InventoryService, ProgressService, RewardService
+│   ├── CoinService, LivesService
 │   └── StarCalculator
 ├── Views/
 │   ├── StageMapView, StageNodeView, CountryNodeView, LevelSelectPopupView
@@ -502,24 +581,24 @@ Assets/Match3/Scripts/
 │   ├── ObjectiveView, MoveCounterView
 │   ├── LevelResultView, LevelTaskPopupView, StageRewardPopupView
 │   ├── BackpackView, ActiveBoostView
-│   ├── WalletView               ← DontDestroyOnLoad, спавн из ProjectContext ✅ НОВЫЙ
+│   ├── WalletView
 │   └── BoardInputHandler
 ├── Presenters/
 │   ├── StageMapPresenter
 │   ├── BoardPresenter, SwapPresenter, LayerPresenter
 │   ├── ObjectivePresenter
-│   ├── LevelPresenter           ← только HUD: ходы + цели
+│   ├── LevelPresenter
 │   ├── BoostPresenter
-│   └── WalletPresenter          ← ProjectContext, один на всю игру ✅ НОВЫЙ
+│   └── WalletPresenter
 ├── Editor/
 │   ├── WorldMapConfigGenerator, StageMapUISetup, LevelEditorWindow
 │   └── CellDataDrawer, UISetupEditor, StageMapUISetupEditor
 └── Installers/
-    ├── ProjectConfigInstaller    ← + EconomyConfig ✅
-    ├── ProjectServiceInstaller   ← + CoinService, LivesService, WalletPresenter, WalletView ✅
+    ├── ProjectConfigInstaller    ← + AdConfig ✅
+    ├── ProjectServiceInstaller   ← + IAdProvider→MockAdProvider, AdService ✅
     ├── StageMapInstaller, StageMapViewInstaller
-    ├── SceneServiceInstaller    ← + GameFlowService (после GameLoopController)
-    ├── SceneViewInstaller       ← + LevelTaskPopupView, StageRewardPopupView
+    ├── SceneServiceInstaller
+    ├── SceneViewInstaller
     └── ScenePresenterInstaller
 ```
 
@@ -652,3 +731,8 @@ cellType: 0=Normal  1=Hidden
 - SceneViewInstaller + StageMapViewInstaller — добавить биндинг WalletView.FromComponentInHierarchy
 - StageStoryConfig — назначить в нужные StageConfig через инспектор после создания ассетов
 - Story TODO: при подключении локализации заменить FallbackText на чтение по LocalizationId во всех ApplyStory()
+- **AdConfig** — создать ассет через Match3/Configs/Ad, заполнить UnitId и назначить в ProjectConfigInstaller ✅ НОВЫЙ
+- **ProjectServiceInstaller** — добавить биндинги IAdProvider→MockAdProvider и AdService ✅ НОВЫЙ
+- **GameFlowService** — вызывать AdService.RegisterLevelCompleted() + TryShowInterstitialAsync() после победы ✅ НОВЫЙ
+- **LevelResultView** — добавить кнопку "Продолжить" → AdService.ShowRewarded(ContinueGame) → +5 ходов ✅ НОВЫЙ
+- При подключении реального SDK — создать AdMobProvider : IAdProvider, сменить биндинг в Installer

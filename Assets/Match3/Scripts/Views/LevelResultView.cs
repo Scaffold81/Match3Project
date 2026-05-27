@@ -1,9 +1,12 @@
 #nullable enable
 
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using Match3.Core.Enums;
 using Match3.Core.Models;
 using Match3.Services;
+using Match3.Services.Ads;
 using Match3.Services.SceneManagement;
 using R3;
 using TMPro;
@@ -20,7 +23,8 @@ namespace Match3.Views
     ///   — Персонаж (грустный)
     ///   — Текст "Не хватило ходов!"
     ///   — Количество оставшихся жизней
-    ///   — Кнопка "Попробовать ещё" → TrySpendLife() + перезапуск
+    ///   — Кнопка "Попробовать ещё" → TrySpendLife() + перезапуск       (видна когда жизней > 0)
+    ///   — Кнопка "👁 Смотреть рекламу" → реклама → жизни + перезапуск  (видна когда жизней = 0)
     ///   — Кнопка "На карту"        → выход (жизнь НЕ тратится)
     /// </summary>
     public sealed class LevelResultView : MonoBehaviour
@@ -40,9 +44,11 @@ namespace Match3.Views
 
         [Header("Кнопки")]
         [SerializeField] private Button _restartButton   = null!;
+        [SerializeField] private Button _watchAdButton   = null!;
         [SerializeField] private Button _backToMapButton = null!;
 
         private LivesService         _livesService        = null!;
+        private AdService            _adService           = null!;
         private ISceneManagerService _sceneManagerService = null!;
 
         private readonly CompositeDisposable _disposables = new();
@@ -53,9 +59,11 @@ namespace Match3.Views
         public void Construct(
             GameFlowService      gameFlowService,
             LivesService         livesService,
+            AdService            adService,
             ISceneManagerService sceneManagerService)
         {
             _livesService        = livesService;
+            _adService           = adService;
             _sceneManagerService = sceneManagerService;
 
             gameFlowService.OnLevelLost
@@ -64,7 +72,7 @@ namespace Match3.Views
                 .AddTo(_disposables);
 
             livesService.Lives
-                .Subscribe(lives => UpdateLivesText(lives, livesService.MaxLives))
+                .Subscribe(lives => RefreshButtons(lives))
                 .AddTo(_disposables);
         }
 
@@ -77,6 +85,7 @@ namespace Match3.Views
             _titleText.text = "Не хватило ходов!";
 
             _restartButton.onClick.AddListener(OnRestartClicked);
+            _watchAdButton.onClick.AddListener(OnWatchAdClicked);
             _backToMapButton.onClick.AddListener(OnBackToMapClicked);
         }
 
@@ -94,6 +103,7 @@ namespace Match3.Views
             _characterImage.enabled = characterSprite != null;
 
             ApplyStory(storySlide);
+            RefreshButtons(_livesService.Lives.CurrentValue);
 
             _tween?.Kill();
             _tween = _canvasGroup
@@ -120,20 +130,51 @@ namespace Match3.Views
             _storyImage.enabled = slide.Image != null;
 
             // TODO: когда подключится локализация — читать по slide.LocalizationId
-            var text        = slide.FallbackText ?? string.Empty;
+            var text           = slide.FallbackText ?? string.Empty;
             _storyText.text    = text;
             _storyText.enabled = !string.IsNullOrEmpty(text);
         }
 
-        private void UpdateLivesText(int current, int max)
+        private void RefreshButtons(int lives)
         {
-            _livesText.text = $"{current}/{max}";
+            var hasLives = lives > 0;
+            _restartButton.gameObject.SetActive(hasLives);
+            _watchAdButton.gameObject.SetActive(!hasLives);
         }
+
+        private void SetButtonsInteractable(bool interactable)
+        {
+            _restartButton.interactable   = interactable;
+            _watchAdButton.interactable   = interactable;
+            _backToMapButton.interactable = interactable;
+        }
+
+        // ── Обработчики ───────────────────────────────────────────────────────
 
         private void OnRestartClicked()
         {
             _livesService.TrySpendLife();
             _sceneManagerService.LoadSceneAsync(SceneId.Game);
+        }
+
+        private void OnWatchAdClicked()
+        {
+            WatchAdAndRestartAsync(this.GetCancellationTokenOnDestroy()).Forget();
+        }
+
+        private async UniTaskVoid WatchAdAndRestartAsync(CancellationToken ct)
+        {
+            SetButtonsInteractable(false);
+
+            var result = await _adService.ShowRewardedAsync(AdPlacementId.RewardedLives, ct);
+
+            if (result.IsRewarded)
+            {
+                _sceneManagerService.LoadSceneAsync(SceneId.Game);
+                return;
+            }
+
+            SetButtonsInteractable(true);
         }
 
         private void OnBackToMapClicked()
