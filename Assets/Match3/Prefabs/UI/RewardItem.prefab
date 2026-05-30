@@ -330,8 +330,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Views.RewardItemView
   _icon: {fileID: 5854217409643781041}
-  _nameText: {fileID: 6229185410700731224}
-  _countText: {fileID: 7442203502043564472}
+  _amountText: {fileID: 7442203502043564472}
 --- !u!1 &8625747268289991470
 GameObject:
   m_ObjectHideFlags: 0

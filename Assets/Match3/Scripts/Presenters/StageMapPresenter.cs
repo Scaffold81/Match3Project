@@ -6,6 +6,7 @@ using Match3.Configs;
 using Match3.Core.Enums;
 using Match3.Core.Models;
 using Match3.Services;
+using Match3.Services.Ads;
 using Match3.Services.SceneManagement;
 using Match3.Views;
 using R3;
@@ -17,14 +18,18 @@ namespace Match3.Presenters
     public sealed class StageMapPresenter : IInitializable, IDisposable
     {
         private readonly WorldMapConfig           _worldMapConfig;
-        private readonly ProgressService         _progressService;
-        private readonly RewardService           _rewardService;
-        private readonly ISceneManagerService    _sceneManagerService;
-        private readonly StageMapView            _stageMapView;
-        private readonly LevelSelectPopupView    _levelSelectPopupView;
+        private readonly ProgressService          _progressService;
+        private readonly RewardService            _rewardService;
+        private readonly LivesService             _livesService;
+        private readonly ResourcePopupService     _resourcePopupService;
+        private readonly EconomyConfig            _economyConfig;
+        private readonly AdConfig                 _adConfig;
+        private readonly ISceneManagerService     _sceneManagerService;
+        private readonly StageMapView             _stageMapView;
+        private readonly LevelSelectPopupView     _levelSelectPopupView;
         private readonly CountryCompletePopupView _countryCompletePopupView;
-        private readonly GemConfig               _gemConfig;
-        private readonly RewardIconConfig        _rewardIconConfig;
+        private readonly GemConfig                _gemConfig;
+        private readonly RewardIconConfig         _rewardIconConfig;
 
         private readonly CompositeDisposable _disposables = new();
 
@@ -37,6 +42,10 @@ namespace Match3.Presenters
             WorldMapConfig            worldMapConfig,
             ProgressService           progressService,
             RewardService             rewardService,
+            LivesService              livesService,
+            ResourcePopupService      resourcePopupService,
+            EconomyConfig             economyConfig,
+            AdConfig                  adConfig,
             ISceneManagerService      sceneManagerService,
             StageMapView              stageMapView,
             LevelSelectPopupView      levelSelectPopupView,
@@ -47,6 +56,10 @@ namespace Match3.Presenters
             _worldMapConfig           = worldMapConfig;
             _progressService          = progressService;
             _rewardService            = rewardService;
+            _livesService             = livesService;
+            _resourcePopupService     = resourcePopupService;
+            _economyConfig            = economyConfig;
+            _adConfig                 = adConfig;
             _sceneManagerService      = sceneManagerService;
             _stageMapView             = stageMapView;
             _levelSelectPopupView     = levelSelectPopupView;
@@ -64,7 +77,7 @@ namespace Match3.Presenters
             CheckPendingCountryReward();
         }
 
-        // ── Refresh ──────────────────────────────────────────────────────────
+        // ── Refresh ───────────────────────────────────────────────────────────
 
         private void RefreshMap()
         {
@@ -79,7 +92,7 @@ namespace Match3.Presenters
                 isUnlocked: c => _progressService.IsCountryUnlocked(c));
         }
 
-        // ── Подписки ─────────────────────────────────────────────────────────
+        // ── Подписки ──────────────────────────────────────────────────────────
 
         private void SubscribeNodes()
         {
@@ -107,7 +120,7 @@ namespace Match3.Presenters
                 .AddTo(_disposables);
         }
 
-        // ── Логика ───────────────────────────────────────────────────────────
+        // ── Логика ────────────────────────────────────────────────────────────
 
         private void OnStageClicked(StageNodeView node)
         {
@@ -118,17 +131,57 @@ namespace Match3.Presenters
                 return;
             }
 
+            if (_livesService.Lives.CurrentValue <= 0)
+            {
+                RequestLives(node, stage);
+                return;
+            }
+
+            OpenLevelSelect(node, stage);
+        }
+
+        private void RequestLives(StageNodeView node, StageConfig stage)
+        {
+            var entry   = _adConfig.GetPlacement(AdPlacementId.RewardedLives);
+            var rewards = entry?.Rewards ?? Array.Empty<RewardData>();
+
+            var rewardIcons = new Sprite?[rewards.Length];
+            for (var i = 0; i < rewards.Length; i++)
+                rewardIcons[i] = _rewardIconConfig.GetIcon(rewards[i].Type, rewards[i].Boost);
+
+            var request = new ResourcePopupRequest
+            {
+                Title            = "Жизни закончились!",
+                CharacterSprite  = stage.CharacterSprite,
+                CharacterDialog  = "Сначала пополни жизни!",
+                DialogLocaleId   = "popup.no_lives.dialog",
+                Rewards          = rewards,
+                RewardIcons      = rewardIcons,
+                AdPlacementId    = AdPlacementId.RewardedLives,
+                AdButtonLabel    = "👁 Получить жизнь",
+                CoinPrice        = _economyConfig.LivesPurchasePrice,
+                CoinButtonLabel  = $"💰 {_economyConfig.LivesPurchasePrice} — получить жизни",
+            };
+
+            request.OnSuccess
+                .Take(1)
+                .Subscribe(_ => OpenLevelSelect(node, stage))
+                .AddTo(_disposables);
+
+            _resourcePopupService.Request(request);
+        }
+
+        private void OpenLevelSelect(StageNodeView node, StageConfig stage)
+        {
             _popupCountryIndex = node.countryIndex;
             _popupStageIndex   = node.stageIndex;
             _popupLevelIndex   = 0;
 
-            // Цели = сумма по всем уровням этапа сгруппированная по NodeType
             var objectives     = AggregateStageObjectives(stage);
             var objectiveIcons = new Sprite?[objectives.Length];
             for (var i = 0; i < objectives.Length; i++)
                 objectiveIcons[i] = _gemConfig.GetVisual(objectives[i].nodeType)?.Sprite;
 
-            // Награды = из StageConfig.StageRewards
             var rewards     = stage.StageRewards;
             var rewardIcons = new Sprite?[rewards.Length];
             for (var i = 0; i < rewards.Length; i++)
@@ -152,7 +205,7 @@ namespace Match3.Presenters
             _sceneManagerService.LoadSceneAsync(SceneId.Game);
         }
 
-        // ── Награда за страну ─────────────────────────────────────────────────────────
+        // ── Награда за страну ─────────────────────────────────────────────────
 
         private void CheckPendingCountryReward()
         {
@@ -182,10 +235,6 @@ namespace Match3.Presenters
 
         // ── Агрегация целей этапа ─────────────────────────────────────────────
 
-        /// <summary>
-        /// Суммирует цели всех 3 уровней этапа по NodeType.
-        /// Например: Level1(Red×15) + Level2(Red×10, Blue×20) = Red×25, Blue×20.
-        /// </summary>
         private static ObjectiveData[] AggregateStageObjectives(StageConfig stage)
         {
             var totals = new Dictionary<NodeType, int>();

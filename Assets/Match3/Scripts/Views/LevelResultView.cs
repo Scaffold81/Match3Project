@@ -16,17 +16,6 @@ using Zenject;
 
 namespace Match3.Views
 {
-    /// <summary>
-    /// Панель поражения. Живёт в сцене — биндинг не нужен, Zenject инжектирует через Construct().
-    ///
-    /// Содержимое (референс Pirate Treasures):
-    ///   — Персонаж (грустный)
-    ///   — Текст "Не хватило ходов!"
-    ///   — Количество оставшихся жизней
-    ///   — Кнопка "Попробовать ещё" → TrySpendLife() + перезапуск       (видна когда жизней > 0)
-    ///   — Кнопка "👁 Смотреть рекламу" → реклама → жизни + перезапуск  (видна когда жизней = 0)
-    ///   — Кнопка "На карту"        → выход (жизнь НЕ тратится)
-    /// </summary>
     public sealed class LevelResultView : MonoBehaviour
     {
         [Header("Анимация")]
@@ -52,7 +41,6 @@ namespace Match3.Views
         private ISceneManagerService _sceneManagerService = null!;
 
         private readonly CompositeDisposable _disposables = new();
-
         private Tween? _tween;
 
         [Inject]
@@ -71,8 +59,15 @@ namespace Match3.Views
                 .Subscribe(payload => Show(payload.CharacterSprite, payload.Story))
                 .AddTo(_disposables);
 
+            // Реактивно обновляем кнопки и счётчик жизней при любом изменении.
+            // После просмотра рекламы RewardService добавит жизни → Lives эмитит →
+            // RefreshButtons сам скроет кнопку рекламы и покажет кнопку рестарта.
             livesService.Lives
-                .Subscribe(lives => RefreshButtons(lives))
+                .Subscribe(lives =>
+                {
+                    RefreshButtons(lives);
+                    _livesText.text = $"{lives}/{livesService.MaxLives}";
+                })
                 .AddTo(_disposables);
         }
 
@@ -103,7 +98,6 @@ namespace Match3.Views
             _characterImage.enabled = characterSprite != null;
 
             ApplyStory(storySlide);
-            RefreshButtons(_livesService.Lives.CurrentValue);
 
             _tween?.Kill();
             _tween = _canvasGroup
@@ -129,7 +123,7 @@ namespace Match3.Views
             _storyImage.sprite  = slide.Image;
             _storyImage.enabled = slide.Image != null;
 
-            // TODO: когда подключится локализация — читать по slide.LocalizationId
+            // TODO: при подключении локализации читать по slide.LocalizationId
             var text           = slide.FallbackText ?? string.Empty;
             _storyText.text    = text;
             _storyText.enabled = !string.IsNullOrEmpty(text);
@@ -168,13 +162,13 @@ namespace Match3.Views
 
             var result = await _adService.ShowRewardedAsync(AdPlacementId.RewardedLives, ct);
 
-            if (result.IsRewarded)
-            {
-                _sceneManagerService.LoadSceneAsync(SceneId.Game);
-                return;
-            }
-
+            // Разблокируем кнопки в любом случае.
+            // Если реклама досмотрена — RewardService уже добавил жизни,
+            // Lives.Subscribe сам вызовет RefreshButtons и переключит кнопки.
             SetButtonsInteractable(true);
+
+            if (!result.IsRewarded)
+                Debug.LogError($"[LevelResultView] Ad not rewarded: {result.FailReason}");
         }
 
         private void OnBackToMapClicked()

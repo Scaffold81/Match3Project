@@ -30,6 +30,7 @@ namespace Match3.Installers
             Container.Bind<CoinService>()                      .AsSingle().NonLazy();
             Container.Bind<LivesService>()                     .AsSingle().NonLazy();
             Container.BindInterfacesAndSelfTo<RewardService>() .AsSingle().NonLazy();
+            Container.Bind<ResourcePopupService>()             .AsSingle().NonLazy();
 
             Container.Bind<IAdProvider>().To<MockAdProvider>() .AsSingle();
             Container.BindInterfacesAndSelfTo<AdService>()     .AsSingle().NonLazy();

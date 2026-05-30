@@ -1,6 +1,5 @@
 #nullable enable
 
-using Match3.Core.Enums;
 using Match3.Core.Models;
 using TMPro;
 using UnityEngine;
@@ -8,25 +7,21 @@ using UnityEngine.UI;
 
 namespace Match3.Views
 {
+    /// <summary>
+    /// Один элемент списка наград: иконка + количество.
+    /// Используется в StageRewardPopupView, LevelSelectPopupView,
+    /// CountryCompletePopupView и ResourcePopupView.
+    /// </summary>
     public sealed class RewardItemView : MonoBehaviour
     {
-        [SerializeField] private Image    _icon      = null!;
-        [SerializeField] private TMP_Text _nameText  = null!;
-        [SerializeField] private TMP_Text _countText = null!;
+        [SerializeField] private Image    _icon       = null!;
+        [SerializeField] private TMP_Text _amountText = null!;
 
         public void Setup(RewardData reward, Sprite? icon)
         {
-            var hasIcon       = icon != null;
-            _icon.sprite      = icon;
-            _icon.enabled     = hasIcon;
-            _nameText.text    = hasIcon ? string.Empty : GetLabel(reward);
-            _nameText.enabled = !hasIcon;
-            _countText.text   = $"x{reward.Amount}";
+            _icon.sprite     = icon;
+            _icon.enabled    = icon != null;
+            _amountText.text = $"+{reward.Amount}";
         }
-
-        private static string GetLabel(RewardData reward) =>
-            reward.Type == RewardType.Boost
-                ? reward.Boost.ToString()
-                : reward.Type.ToString();
     }
 }

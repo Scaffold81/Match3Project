@@ -3,6 +3,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Match3.Configs;
+using Match3.Core.Models;
 using UnityEngine;
 using Zenject;
 
@@ -43,6 +44,13 @@ namespace Match3.Services.Ads
             {
                 Debug.LogError($"[AdService] Init failed: {e.Message}");
             }
+        }
+
+        /// <summary>Возвращает награды плейсмента для предпросмотра в UI.</summary>
+        public RewardData[] GetPlacementRewards(AdPlacementId placementId)
+        {
+            var entry = _config.GetPlacement(placementId);
+            return entry?.Rewards ?? Array.Empty<RewardData>();
         }
 
         public async UniTask<AdResult> ShowRewardedAsync(AdPlacementId placementId, CancellationToken ct)
