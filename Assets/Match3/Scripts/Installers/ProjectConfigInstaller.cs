@@ -8,13 +8,14 @@ namespace Match3.Installers
 {
     public sealed class ProjectConfigInstaller : MonoInstaller
     {
-        [SerializeField] private GemConfig     _gemConfig     = null!;
-        [SerializeField] private BoardConfig   _boardConfig   = null!;
+        [SerializeField] private GemConfig      _gemConfig      = null!;
+        [SerializeField] private BoardConfig    _boardConfig    = null!;
         [SerializeField] private AnimationConfig _animationConfig = null!;
         [SerializeField] private WorldMapConfig _worldMapConfig = null!;
-        [SerializeField] private ItemConfig    _itemConfig    = null!;
-        [SerializeField] private EconomyConfig _economyConfig = null!;
-        [SerializeField] private AdConfig      _adConfig      = null!;
+        [SerializeField] private ItemConfig     _itemConfig     = null!;
+        [SerializeField] private EconomyConfig  _economyConfig  = null!;
+        [SerializeField] private AdConfig       _adConfig       = null!;
+        [SerializeField] private ShopConfig     _shopConfig     = null!;
 
         public override void InstallBindings()
         {
@@ -27,6 +28,7 @@ namespace Match3.Installers
             Container.BindInstance(_itemConfig).AsSingle();
             Container.BindInstance(_economyConfig).AsSingle();
             Container.BindInstance(_adConfig).AsSingle();
+            Container.BindInstance(_shopConfig).AsSingle();
         }
 
         private void ValidateConfigs()
@@ -45,6 +47,8 @@ namespace Match3.Installers
                 Debug.LogError("ProjectConfigInstaller: EconomyConfig is not assigned");
             if (_adConfig == null)
                 Debug.LogError("ProjectConfigInstaller: AdConfig is not assigned");
+            if (_shopConfig == null)
+                Debug.LogError("ProjectConfigInstaller: ShopConfig is not assigned");
         }
     }
 }

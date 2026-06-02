@@ -16,6 +16,7 @@ public enum SceneId      { Bootstrap, StageMap, Game }
 public enum RewardType   { Boost, Coins, Lives }
 public enum AdPlacementId { ContinueGame, RewardedLives, RewardedCoins, RewardedBoost, Interstitial }
 public enum AdFailReason  { None, NoFill, NetworkError, Timeout, Unknown }
+public enum PurchaseResult { Success, Cancelled, Failed, NotEnoughCoins }
 ```
 
 ### Утилиты
@@ -566,6 +567,84 @@ ClearSelection() — вызывается при OnBoostSelected/OnBoostCancelle
 
 ---
 
+## 🛒 Магазин (Shop) ✅ РЕАЛИЗОВАНО
+
+### ShopConfig (ProjectContext, ScriptableObject)
+```
+Путь: Match3/Configs/Shop
+
+Items[] : ShopItemData
+  PurchaseId : string   — уникальный ID товара (используется IIAPProvider)
+  CoinCost   : int      — стоимость в монетах (0 = только IAP)
+  Icon       : Sprite?
+  Title      : string
+  Rewards[]  : RewardData
+```
+
+### IIAPProvider (интерфейс) + MockIAPProvider
+```
+Реализации:
+  MockIAPProvider  — для разработки (имитирует покупку с задержкой 500мс, всегда Success)
+  // UnityIAPProvider — подключить при интеграции Unity IAP SDK
+
+PurchaseAsync(purchaseId, ct) → UniTask<PurchaseResult>
+```
+
+### ShopService (ProjectContext, IDisposable)
+```
+BuyWithCoinsAsync(purchaseId, ct) → UniTask<PurchaseResult>
+  — CoinService.TrySpend → RewardService.GrantAll → OnPurchaseSuccess
+
+BuyWithIAPAsync(purchaseId, ct) → UniTask<PurchaseResult>
+  — IIAPProvider.PurchaseAsync → RewardService.GrantAll → OnPurchaseSuccess
+
+OnPurchaseSuccess : Observable<RewardData[]>
+```
+
+### ShopView (MonoBehaviour)
+```
+Build(ShopConfig, ItemConfig)
+  — Instantiate ShopItemCardView на каждый ShopItemData в _cardsContainer
+
+Show() / Hide()     — CanvasGroup.DOFade (0.25f / 0.2f) + SetLink
+SetAllCardsInteractable(bool)
+
+OnBuyClicked : Observable<string>   — purchaseId
+```
+
+### ShopItemCardView (MonoBehaviour)
+```
+Setup(ShopItemData, ItemConfig)
+  — заполняет иконку, название, стоимость
+  — Instantiate RewardItemView для каждой награды в _rewardRoot
+
+SetInteractable(bool)
+OnBuyClicked : Observable<string>   — purchaseId
+```
+
+### ShopPresenter (SceneContext или ProjectContext, IInitializable, IDisposable)
+```
+Initialize():
+  _view.Build(shopConfig, itemConfig)
+  _view.OnBuyClicked → HandleBuyAsync(purchaseId)
+
+HandleBuyAsync(purchaseId):
+  SetAllCardsInteractable(false)
+  ShopService.BuyWithCoinsAsync → логирует NotEnoughCoins
+  finally: SetAllCardsInteractable(true)
+```
+
+### ShopInstaller (MonoInstaller)
+```
+ShopConfig         → FromScriptableObject.AsSingle
+IIAPProvider       → MockIAPProvider.AsSingle
+ShopService        → AsSingle
+ShopView           → FromComponentInHierarchy.AsSingle
+ShopPresenter      → BindInterfacesAndSelfTo.AsSingle.NonLazy
+```
+
+---
+
 ## 🏗️ Services
 
 ### ProjectContext
@@ -577,6 +656,7 @@ LivesService          — жизни + таймер (PlayerPrefs)
 RewardService         — выдача наград (IDisposable)
 AdService             — реклама (IInitializable, IDisposable)
 ResourcePopupService  — медиатор попапа ресурсов (IDisposable)
+ShopService           — покупки (IDisposable)
 WalletView            — HUD кошелька, подписка через Construct()
 ISceneManagerService  → SceneManagerService
 Bootstrapper          — стартует с SceneId.StageMap
@@ -594,6 +674,7 @@ GameFlowService     (IInitializable #2, IDisposable)
 ### SceneContext (StageMap)
 ```
 BackpackPopupView   — через MonoBehaviours To Inject или FromComponentInHierarchy
+ShopPresenter       — IInitializable, IDisposable (если магазин открывается со StageMap)
 ```
 
 ### LevelService (SceneContext)
@@ -635,6 +716,7 @@ EconomyConfig     — MaxLives, LifeRegenSeconds, LivesPurchasePrice,
                     LivesPurchaseAmount, InitialCoins
 AdConfig          — AppIds, Cooldowns, Placements[] (PlacementId + UnitIds + Rewards)
 ItemConfig        — BoostItems[] (BoostType + Icon + CoinPrice), RewardIcons[]
+ShopConfig        — Items[] (PurchaseId + CoinCost + Icon + Title + Rewards[])
 ```
 
 ---
@@ -645,7 +727,7 @@ ItemConfig        — BoostItems[] (BoostType + Icon + CoinPrice), RewardIcons[]
 Assets/Match3/Scripts/
 ├── Core/
 │   ├── Enums/          NodeType, SuperGemType, BoostType, CellType, SceneId,
-│   │                   RewardType, AdPlacementId, AdFailReason
+│   │                   RewardType, AdPlacementId, AdFailReason, PurchaseResult
 │   ├── Models/         BoardCell, CellData, ObjectiveData, LevelAddress, RewardData
 │   │                   StorySlide, LevelStoryData, AdResult, ResourcePopupRequest
 │   ├── BoostTypeExtensions.cs
@@ -655,8 +737,8 @@ Assets/Match3/Scripts/
 │   ├── LevelConfig, LevelConfigRepository
 │   ├── StageConfig, WorldMapConfig, CountryConfig
 │   ├── StageStoryConfig, EconomyConfig
-│   ├── AdConfig
-│   └── ItemConfig
+│   ├── AdConfig, ItemConfig
+│   └── ShopConfig
 ├── Controllers/
 │   ├── Bootstrapper
 │   └── GameLoopController
@@ -667,12 +749,12 @@ Assets/Match3/Scripts/
 │   ├── Level/          LevelService
 │   ├── Factories/      GemFactory
 │   ├── Ads/            IAdProvider, MockAdProvider, AdService
+│   ├── Shop/           IIAPProvider, MockIAPProvider, ShopService
 │   ├── HintService, BoostService
 │   ├── GameFlowService
 │   ├── InventoryService, ProgressService, RewardService
 │   ├── CoinService, LivesService
-│   ├── ResourcePopupService
-│   └── StarCalculator
+│   └── ResourcePopupService
 ├── Views/
 │   ├── StageMapView, StageNodeView, CountryNodeView, LevelSelectPopupView
 │   ├── BoardView, GemView, LayerView
@@ -684,6 +766,8 @@ Assets/Match3/Scripts/
 │   ├── ActiveBoostView    — шапка с активным бустом (Game)
 │   ├── ResourcePopupView  — универсальный попап получения ресурса
 │   ├── RewardItemView     — одна строка награды в ResourcePopupView
+│   ├── ShopView           — полноэкранный попап магазина (ScrollRect + карточки)
+│   ├── ShopItemCardView   — карточка одного товара
 │   ├── WalletView
 │   └── BoardInputHandler
 ├── Presenters/
@@ -692,15 +776,18 @@ Assets/Match3/Scripts/
 │   ├── ObjectivePresenter
 │   ├── LevelPresenter
 │   ├── BoostPresenter
+│   ├── ShopPresenter
 │   └── WalletPresenter
 ├── Editor/
 │   ├── WorldMapConfigGenerator, StageMapUISetup, LevelEditorWindow
 │   └── CellDataDrawer, UISetupEditor, StageMapUISetupEditor
 └── Installers/
-    ├── ProjectConfigInstaller    ← AdConfig, ItemConfig
+    ├── ProjectConfigInstaller    ← AdConfig, ItemConfig, ShopConfig
     ├── ProjectServiceInstaller   ← IAdProvider→MockAdProvider, AdService,
+    │                                IIAPProvider→MockIAPProvider, ShopService,
     │                                ResourcePopupService
     ├── StageMapInstaller, StageMapViewInstaller
+    ├── ShopInstaller             ← ShopView, ShopPresenter (добавить в нужный контекст)
     ├── SceneServiceInstaller
     ├── SceneViewInstaller
     └── ScenePresenterInstaller
@@ -797,6 +884,11 @@ T-SHAPE 8×8:   2 полных строки сверху + 5 узких стро
 - EconomyConfig — создать ассет через Match3/Configs/Economy и назначить в ProjectConfigInstaller
 - ItemConfig — создать ассет через Match3/Configs/Item, заполнить иконки и цены
 - AdConfig — создать ассет через Match3/Configs/Ad, заполнить UnitId
+- **ShopConfig — создать ассет через Match3/Configs/Shop, заполнить товары**
+- **ShopView — создать GameObject в сцене, назначить поля в инспекторе**
+- **ShopItemCardView — создать Prefab, назначить поля в инспекторе**
+- **ShopInstaller — добавить в SceneContext StageMap**
+- **При подключении Unity IAP — создать UnityIAPProvider : IIAPProvider, сменить биндинг**
 - SceneViewInstaller + StageMapViewInstaller — добавить биндинг WalletView.FromComponentInHierarchy
 - StageStoryConfig — назначить в нужные StageConfig через инспектор
 - Story: при локализации заменить FallbackText на чтение по LocalizationId

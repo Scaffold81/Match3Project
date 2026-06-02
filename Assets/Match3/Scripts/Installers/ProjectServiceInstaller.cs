@@ -6,6 +6,7 @@ using Match3.Services;
 using Match3.Services.Ads;
 using Match3.Services.Inventory;
 using Match3.Services.SceneManagement;
+using Match3.Services.Shop;
 using Zenject;
 
 namespace Match3.Installers
@@ -34,6 +35,9 @@ namespace Match3.Installers
 
             Container.Bind<IAdProvider>().To<MockAdProvider>() .AsSingle();
             Container.BindInterfacesAndSelfTo<AdService>()     .AsSingle().NonLazy();
+
+            Container.Bind<IIAPProvider>().To<MockIAPProvider>().AsSingle();
+            Container.Bind<ShopService>()                      .AsSingle().NonLazy();
         }
     }
 }

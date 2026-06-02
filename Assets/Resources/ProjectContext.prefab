@@ -159,3 +159,4 @@ MonoBehaviour:
   _itemConfig: {fileID: 11400000, guid: c6fcece3560b26148a6c4fa0030d2931, type: 2}
   _economyConfig: {fileID: 11400000, guid: 44ace1de3fb770f47bcd13948b8147b7, type: 2}
   _adConfig: {fileID: 11400000, guid: 9a9fb5527eacd5f419803ccf04f53d18, type: 2}
+  _shopConfig: {fileID: 11400000, guid: eb574496293b9d248ac11eac45b27be6, type: 2}
