@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Match3.Configs;
 using Match3.Core.Enums;
 using R3;
 using UnityEngine;
@@ -35,6 +36,12 @@ namespace Match3.Views
         {
             _onBoostClicked.Dispose();
             _disposables.Dispose();
+        }
+
+        public void SetIcons(ItemConfig itemConfig)
+        {
+            foreach (var slot in _slots)
+                slot.SetIcon(itemConfig.GetBoostIcon(slot.BoostType));
         }
 
         public void UpdateCount(BoostType boost, int count)

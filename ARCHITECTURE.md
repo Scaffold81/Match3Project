@@ -14,8 +14,8 @@ public enum CellType     { Normal, Hidden }
 public enum LevelState   { Idle, Playing, Won, Lost }  // определён внутри LevelService.cs
 public enum SceneId      { Bootstrap, StageMap, Game }
 public enum RewardType   { Boost, Coins, Lives }
-public enum AdPlacementId { ContinueGame, RewardedLives, RewardedCoins, RewardedBoost, Interstitial }  // ✅ НОВЫЙ
-public enum AdFailReason  { None, NoFill, NetworkError, Timeout, Unknown }                             // ✅ НОВЫЙ
+public enum AdPlacementId { ContinueGame, RewardedLives, RewardedCoins, RewardedBoost, Interstitial }
+public enum AdFailReason  { None, NoFill, NetworkError, Timeout, Unknown }
 ```
 
 ### Утилиты
@@ -167,7 +167,6 @@ GameFlowService.Initialize()
 Оркестрирует весь игровой цикл внутри Game-сцены.
 
 OnLevelLost : Observable<(Sprite? CharacterSprite, StorySlide? Story)>
-  — изменено с Observable<Sprite?> для передачи истории поражения
 
 ShowCurrentLevelTask():
   → читает stage.StoryConfig?.GetLevelStory(levelIndex)?.StartStory
@@ -279,7 +278,7 @@ StageConfig.StageRewards[] — выдаются через RewardService при 
 Бонусный этап → ставь более ценные награды (редкие бусты, много монет).
 ```
 
-### RewardService (ProjectContext, IDisposable) ✅ ОБНОВЛЕНО
+### RewardService (ProjectContext, IDisposable)
 ```
 GrantAll(RewardData[])    → выдаёт все награды из массива
 OnRewardGranted           : Observable<RewardData>  ← Presenter слушает для анимации
@@ -297,7 +296,6 @@ OnRewardGranted           : Observable<RewardData>  ← Presenter слушает
 ### EconomyConfig (ProjectContext, ScriptableObject)
 ```
 Путь: Match3/Configs/Economy
-Значения (все редактируются в инспекторе):
 
   MaxLives            = 5       — максимум жизней
   LifeRegenSeconds    = 1800    — 30 мин на одну жизнь
@@ -318,43 +316,24 @@ TrySpend(amount)      — тратит монеты; false если недост
 ### LivesService (ProjectContext, IDisposable)
 ```
 PlayerPrefs:
-  "wallet_lives"           → int    — текущее кол-во жизней
-  "wallet_lives_timestamp" → string — Unix-секунды прихода следующей жизни; "0" = полные
+  "wallet_lives"           → int
+  "wallet_lives_timestamp" → string — Unix-секунды; "0" = полные
 
 Lives             : ReadOnlyReactiveProperty<int>
 TimeUntilNextLife : ReadOnlyReactiveProperty<TimeSpan>   — Zero когда жизни полные
 MaxLives          : int
 
-TrySpendLife()     → bool   — тратит жизнь; false если 0
-AddLives(amount)            — добавляет жизни; молча игнорирует если уже MaxLives
+TrySpendLife()     → bool
+AddLives(amount)
 
 Таймер: UniTask-цикл (тик каждую секунду).
-  При потере с максимума → nextLifeAt = now + RegenSeconds.
-  При достижении максимума → nextLifeAt сбрасывается в 0.
-  Офлайн-восстановление → на старте Tick() досчитывает пропущенное время.
-```
-
-### WalletView (MonoBehaviour, DontDestroyOnLoad)
-```
-Спавнится из ProjectContext через FromComponentInNewPrefab.
-Canvas: Screen Space – Overlay, Sort Order = 10.
-
-SetCoins(int)
-SetLives(int current, int max)
-ShowTimer(TimeSpan)
-HideTimer()
+Офлайн-восстановление на старте.
 ```
 
 ### WalletView (MonoBehaviour, SceneContext)
 ```
 Живёт в Canvas каждой сцены (StageMap, Game). Presenter не нужен.
-Подписывается напрямую на сервисы в Construct().
-
-Construct(CoinService, LivesService):
-  Coins             → _coinsText
-  Lives             → _livesText ("current/max")
-  TimeUntilNextLife → _timerContainer + _timerText (Zero = скрыть)
-
+Construct(CoinService, LivesService) — подписывается напрямую.
 OnDestroy() → _disposables.Dispose()
 ```
 
@@ -366,37 +345,28 @@ OnDestroy() → _disposables.Dispose()
 ```
 Путь: Match3/Configs/Ad
 
-AppIdAndroid                  : string
-AppIdIos                      : string
+AppIdAndroid, AppIdIos
 InterstitialCooldownSeconds   : int  = 30
 MinLevelsBetweenInterstitials : int  = 3
 Placements                    : AdPlacementEntry[]
 
-AdPlacementEntry (Serializable):
-  PlacementId   : AdPlacementId   — enum: ContinueGame, RewardedLives, RewardedCoins, RewardedBoost, Interstitial
+AdPlacementEntry:
+  PlacementId   : AdPlacementId
   UnitIdAndroid : string
   UnitIdIos     : string
-  Rewards       : RewardData[]    — что выдаётся после просмотра
+  Rewards       : RewardData[]
 ```
 
 ### AdResult (Core/Models, readonly struct)
 ```
 IsRewarded : bool
-FailReason : AdFailReason  — None, NoFill, NetworkError, Timeout, Unknown
+FailReason : AdFailReason
 
-AdResult.Success()       — пользователь досмотрел
-AdResult.Skip()          — пользователь закрыл
-AdResult.Fail(reason)    — ошибка
+AdResult.Success() / AdResult.Skip() / AdResult.Fail(reason)
 ```
 
 ### IAdProvider (интерфейс)
 ```
-IsRewardedReady(unitId)     → bool
-IsInterstitialReady(unitId) → bool
-InitializeAsync(appId, ct)  → UniTask
-ShowRewardedAsync(unitId, ct)     → UniTask<AdResult>
-ShowInterstitialAsync(unitId, ct) → UniTask<bool>
-
 Реализации:
   MockAdProvider   — для разработки (имитирует показ с задержкой 500мс)
   // AdMobProvider — подключить при интеграции реального SDK
@@ -405,27 +375,8 @@ ShowInterstitialAsync(unitId, ct) → UniTask<bool>
 ### AdService (ProjectContext, IInitializable, IDisposable)
 ```
 ShowRewardedAsync(placementId, ct) → UniTask<AdResult>
-  — берёт unitId из AdConfig по платформе
-  — проверяет IsRewardedReady
-  — после успеха вызывает RewardService.GrantAll(entry.Rewards)
-
-TryShowInterstitialAsync(ct) → UniTask<bool>
-  — проверяет cooldown (InterstitialCooldownSeconds)
-  — проверяет MinLevelsBetweenInterstitials
-  — показывает если оба условия выполнены
-
-RegisterLevelCompleted()
-  — инкрементирует счётчик уровней для interstitial
-  — вызывать из GameFlowService после победы
-```
-
-### Плейсменты (референс: Сокровища пиратов)
-```
-ContinueGame   — экран поражения, кнопка "Продолжить" (+5 ходов)
-RewardedLives  — WalletView / магазин жизней
-RewardedCoins  — магазин / ежедневный бонус
-RewardedBoost  — магазин бустов
-Interstitial   — автоматически после победы/поражения (с cooldown)
+TryShowInterstitialAsync(ct)       → UniTask<bool>
+RegisterLevelCompleted()           — вызывать из GameFlowService после победы
 ```
 
 ---
@@ -442,16 +393,157 @@ Interstitial   — автоматически после победы/пораж
 
 ---
 
-## 🎒 Инвентарь и бусты
+## 🎒 Система рюкзака и бустов ✅ РЕАЛИЗОВАНО
 
-### InventoryService (ProjectContext)
+### Общая схема
+```
+Рюкзак — это два независимых места использования бустов:
+
+  1. Game-сцена (игровой процесс):
+       BackpackView + BoostPresenter → применение буста на доске
+
+  2. StageMap-сцена (карта уровней):
+       BackpackPopupView → просмотр инвентаря + получение бустов за рекламу/монеты
+```
+
+### InventoryService (ProjectContext, IDisposable)
 ```
 PlayerPrefs: "inventory_boost_{BoostType}"
+
+AllBoosts : BoostType[] — все 7 типов (HorizontalArrow, VerticalArrow, ColorBomb,
+                          Bomb, MegaBomb, Hint, Shuffle)
+
 GetCount(boost) : ReadOnlyReactiveProperty<int>
 HasAny(boost)   : bool
-Add(boost, n)   : void
-TrySpend(boost) : bool
+Add(boost, n)   : void   — throws если n <= 0
+TrySpend(boost) : bool   — false если 0 в инвентаре
+
 AddDebugStarterPack() — ⚠️ временно, удалить после реализации реальных наград
+```
+
+### ItemConfig (ProjectContext, ScriptableObject)
+```
+Путь: Match3/Configs/Item
+Единый источник правды для визуала и стоимости предметов.
+
+BoostItems[]  : BoostItemEntry   — { BoostType, Icon (Sprite), CoinPrice (int) }
+RewardIcons[] : RewardIconEntry  — { RewardType, Icon (Sprite) }
+
+GetBoostIcon(boost)       → Sprite?
+GetBoostCoinPrice(boost)  → int
+GetIcon(RewardType, BoostType) → Sprite?
+```
+
+### BoostSlotView (MonoBehaviour)
+```
+Универсальный слот — используется в BackpackView (игра) и BackpackPopupView (карта).
+
+BoostType       : BoostType  — назначается в инспекторе
+IconTransform   : RectTransform
+OnClicked       : Observable<BoostType>
+
+SetIcon(Sprite?)
+UpdateCount(int)    — обновляет счётчик + alpha (0.45f если 0)
+SetInteractable(bool)
+```
+
+### BackpackView (MonoBehaviour) — Game-сцена
+```
+Нижняя панель бустов в игре. Слоты — pre-placed BoostSlotView[].
+
+OnBoostClicked : Observable<BoostType>  — агрегирует клики всех слотов
+
+UpdateCount(boost, count)
+SetAllInteractable(bool)                — блокируется когда буст уже активен
+GetIconWorldPosition(boost) → Vector3   — для анимации вылета в ActiveBoostView
+```
+
+### BackpackPopupView (MonoBehaviour) — StageMap-сцена ✅ НОВЫЙ
+```
+Рюкзак-попап на карте. Работает в двух режимах:
+  _startVisible = false  — скрытый попап с кнопкой открытия (_showButton)
+  _startVisible = true   — встроенная панель (например, в LevelSelectPopupView)
+
+Слоты подключаются к InventoryService через Construct().
+Клик по слоту → ResourcePopupService.Request() → появляется ResourcePopupView.
+
+Construct(InventoryService, ResourcePopupService, AdConfig, ItemConfig):
+  Для каждого слота:
+    — SetIcon из ItemConfig
+    — Подписка на InventoryService.GetCount → UpdateCount
+    — Подписка на OnClicked → OnBoostSlotClicked(boostType)
+
+OnBoostSlotClicked(boostType):
+  — Берёт Rewards из AdConfig.GetPlacement(RewardedBoost)
+  — Берёт CoinPrice из ItemConfig.GetBoostCoinPrice(boost)
+  — Собирает ResourcePopupRequest { Title, Rewards, RewardIcons, AdPlacementId, CoinPrice }
+  — Вызывает ResourcePopupService.Request(request)
+
+Show() / Hide() — анимация CanvasGroup.DOFade (0.25f / 0.2f)
+```
+
+### ActiveBoostView (MonoBehaviour) — Game-сцена
+```
+Шапка — показывает активный буст во время выбора цели на доске.
+
+OnCancelClicked : Observable<Unit>
+
+ShowBoost(icon, fromWorldPos):
+  — Иконка вылетает из позиции слота рюкзака (DOTween.Sequence)
+  — DOMove (0.35f, OutBack) + DOFade (0.25f)
+
+HideBoost():
+  — DOFade исчезновение (0.2f)
+```
+
+### BoostPresenter (SceneContext, IInitializable, IDisposable)
+```
+Связывает BackpackView + ActiveBoostView + BoostService + InventoryService.
+
+Initialize():
+  Подписка InventoryService.GetCount → BackpackView.UpdateCount (для каждого из AllBoosts)
+  BackpackView.OnBoostClicked → BoostService.SelectBoost
+  BoostService.OnBoostSelected → ActiveBoostView.ShowBoost (иконка из GemConfig)
+  BoostService.OnBoostCancelled → ActiveBoostView.HideBoost
+  BoostService.OnBoostApplied  → ActiveBoostView.HideBoost
+  ActiveBoostView.OnCancelClicked → BoostService.CancelBoost
+  BoostService.ActiveBoost → BackpackView.SetAllInteractable(boost == None)
+
+Примечание: иконки Hint/Shuffle пока не настроены в GemConfig — LogWarning.
+```
+
+### ResourcePopupService (ProjectContext, IDisposable)
+```
+Медиатор для открытия ResourcePopupView из любого места.
+
+OnRequest : Observable<ResourcePopupRequest>
+Request(ResourcePopupRequest) — публикует запрос
+
+ResourcePopupRequest (Model):
+  Title, CharacterDialog, DialogLocaleId
+  CharacterSprite?   : Sprite
+  Rewards            : RewardData[]
+  RewardIcons        : Sprite?[]
+  AdPlacementId      : AdPlacementId
+  AdButtonLabel      : string
+  CoinPrice?         : int
+  CoinButtonLabel    : string
+  NotifySuccess()    — callback после успешного получения награды
+```
+
+### ResourcePopupView (MonoBehaviour) — универсальный попап
+```
+Автономен — подписывается на ResourcePopupService.OnRequest сам (через Construct).
+
+Структура:
+  — Персонаж (иконка + диалог)
+  — Список наград (RewardItemView, динамически)
+  — Кнопка "Смотреть рекламу" → AdService.ShowRewardedAsync
+  — Кнопка "Купить за монеты" (скрыта если CoinPrice == null) → CoinService.TrySpend
+  — Кнопка "Закрыть"
+
+При успехе рекламы: RewardService.GrantAll не нужен — AdService делает это сам.
+При покупке за монеты: RewardService.GrantAll вызывается напрямую.
 ```
 
 ### BoostService (SceneContext)
@@ -467,18 +559,9 @@ OnShuffleApplied : Observable<Unit>
 
 ### SwapService (SceneContext)
 ```
-Lock() / Unlock()        — глобальный лок ввода
-ClearSelection()         — сброс _firstCell без лока
-                           вызывается при OnBoostSelected / OnBoostCancelled
-                           предотвращает случайный своп после буста
-```
-
-### GemFactory (SceneContext)
-```
-Create(nodeType, parent, name) → GemView
-  — использует GemConfig.GemViewPrefab (базовый префаб)
-  — назначает SetConfig + SetVisual
-  — позиционирование — ответственность BoardView.PositionGem()
+Lock() / Unlock()
+ClearSelection() — вызывается при OnBoostSelected/OnBoostCancelled
+                   предотвращает случайный своп после буста
 ```
 
 ---
@@ -487,31 +570,37 @@ Create(nodeType, parent, name) → GemView
 
 ### ProjectContext
 ```
-InventoryService   — бусты (PlayerPrefs)
-ProgressService    — прогресс карты (PlayerPrefs)
-CoinService        — монеты (PlayerPrefs)
-LivesService       — жизни + таймер (PlayerPrefs)
-RewardService      — выдача наград за уровни (IDisposable)
-AdService          — реклама (IInitializable, IDisposable) ✅ НОВЫЙ
-WalletView         — HUD в Canvas сцены, подписка на сервисы через Construct()
-ISceneManagerService → SceneManagerService
-Bootstrapper       — стартует с SceneId.StageMap
+InventoryService      — бусты (PlayerPrefs)
+ProgressService       — прогресс карты (PlayerPrefs)
+CoinService           — монеты (PlayerPrefs)
+LivesService          — жизни + таймер (PlayerPrefs)
+RewardService         — выдача наград (IDisposable)
+AdService             — реклама (IInitializable, IDisposable)
+ResourcePopupService  — медиатор попапа ресурсов (IDisposable)
+WalletView            — HUD кошелька, подписка через Construct()
+ISceneManagerService  → SceneManagerService
+Bootstrapper          — стартует с SceneId.StageMap
 ```
 
 ### SceneContext (Game)
 ```
 BoardService, SwapService, LayerService, LevelService
 HintService, BoostService
-GemFactory              — создание GemView
-GameLoopController      — подготовка доски (IInitializable #1, IDisposable)
-GameFlowService         — игровой цикл: попапы, прогресс, навигация (IInitializable #2, IDisposable)
+GemFactory
+GameLoopController  (IInitializable #1, IDisposable)
+GameFlowService     (IInitializable #2, IDisposable)
+```
+
+### SceneContext (StageMap)
+```
+BackpackPopupView   — через MonoBehaviours To Inject или FromComponentInHierarchy
 ```
 
 ### LevelService (SceneContext)
 ```
-RegisterMatch(match)                 — регистрация матча через GemMatch
-RegisterDestroyedCells(gems)         — регистрация без GemMatch (для бустов)
-ProcessTurnResult()                  — всегда вызывается после свопа И после буста
+RegisterMatch(match)
+RegisterDestroyedCells(gems)
+ProcessTurnResult()
 ```
 
 ### GameLoopController (SceneContext)
@@ -521,6 +610,14 @@ ProcessTurnResult()                  — всегда вызывается по�
   - RegisterDestroyedCells + LayerService.ProcessMatches в ApplyBoostAtAsync
   - ProcessTurnResult() всегда после буста
   - LockCell(false) до null-чека в HandleSwapAsync
+```
+
+### GemFactory (SceneContext)
+```
+Create(nodeType, parent, name) → GemView
+  — использует GemConfig.GemViewPrefab
+  — назначает SetConfig + SetVisual
+  — позиционирование — ответственность BoardView.PositionGem()
 ```
 
 ---
@@ -536,7 +633,8 @@ CountryConfig     — CountryName, CountryIcon, SectionColor, Stages[10]
 WorldMapConfig    — Countries[5]
 EconomyConfig     — MaxLives, LifeRegenSeconds, LivesPurchasePrice,
                     LivesPurchaseAmount, InitialCoins
-AdConfig          — AppIds, Cooldowns, Placements[] (PlacementId + UnitIds + Rewards) ✅ НОВЫЙ
+AdConfig          — AppIds, Cooldowns, Placements[] (PlacementId + UnitIds + Rewards)
+ItemConfig        — BoostItems[] (BoostType + Icon + CoinPrice), RewardIcons[]
 ```
 
 ---
@@ -546,20 +644,19 @@ AdConfig          — AppIds, Cooldowns, Placements[] (PlacementId + UnitIds + R
 ```
 Assets/Match3/Scripts/
 ├── Core/
-│   ├── Enums/          NodeType, SuperGemType, BoostType, CellType, SceneId, RewardType
-│   │                   AdPlacementId ✅ НОВЫЙ
-│   │                   AdFailReason  ✅ НОВЫЙ (в том же файле AdPlacementId.cs)
+│   ├── Enums/          NodeType, SuperGemType, BoostType, CellType, SceneId,
+│   │                   RewardType, AdPlacementId, AdFailReason
 │   ├── Models/         BoardCell, CellData, ObjectiveData, LevelAddress, RewardData
-│   │                   StorySlide, LevelStoryData
-│   │                   AdResult ✅ НОВЫЙ
-│   ├── BoostTypeExtensions.cs  ← extension ToSuperGemType()
+│   │                   StorySlide, LevelStoryData, AdResult, ResourcePopupRequest
+│   ├── BoostTypeExtensions.cs
 │   └── GemMatch.cs, GemState.cs, IGemView.cs
 ├── Configs/
-│   ├── GemConfig, BoardConfig, AnimationConfig, RewardIconConfig
+│   ├── GemConfig, BoardConfig, AnimationConfig
 │   ├── LevelConfig, LevelConfigRepository
 │   ├── StageConfig, WorldMapConfig, CountryConfig
 │   ├── StageStoryConfig, EconomyConfig
-│   └── AdConfig ✅ НОВЫЙ
+│   ├── AdConfig
+│   └── ItemConfig
 ├── Controllers/
 │   ├── Bootstrapper
 │   └── GameLoopController
@@ -569,18 +666,24 @@ Assets/Match3/Scripts/
 │   ├── Layer/          LayerService
 │   ├── Level/          LevelService
 │   ├── Factories/      GemFactory
-│   ├── Ads/            IAdProvider, MockAdProvider, AdService ✅ НОВАЯ ПАПКА
+│   ├── Ads/            IAdProvider, MockAdProvider, AdService
 │   ├── HintService, BoostService
 │   ├── GameFlowService
 │   ├── InventoryService, ProgressService, RewardService
 │   ├── CoinService, LivesService
+│   ├── ResourcePopupService
 │   └── StarCalculator
 ├── Views/
 │   ├── StageMapView, StageNodeView, CountryNodeView, LevelSelectPopupView
 │   ├── BoardView, GemView, LayerView
-│   ├── ObjectiveView, MoveCounterView
+│   ├── ObjectiveView, ObjectiveItemView, MoveCounterView
 │   ├── LevelResultView, LevelTaskPopupView, StageRewardPopupView
-│   ├── BackpackView, ActiveBoostView
+│   ├── BackpackView       — панель бустов в Game-сцене
+│   ├── BackpackPopupView  — рюкзак-попап на карте (StageMap)
+│   ├── BoostSlotView      — универсальный слот буста
+│   ├── ActiveBoostView    — шапка с активным бустом (Game)
+│   ├── ResourcePopupView  — универсальный попап получения ресурса
+│   ├── RewardItemView     — одна строка награды в ResourcePopupView
 │   ├── WalletView
 │   └── BoardInputHandler
 ├── Presenters/
@@ -594,13 +697,16 @@ Assets/Match3/Scripts/
 │   ├── WorldMapConfigGenerator, StageMapUISetup, LevelEditorWindow
 │   └── CellDataDrawer, UISetupEditor, StageMapUISetupEditor
 └── Installers/
-    ├── ProjectConfigInstaller    ← + AdConfig ✅
-    ├── ProjectServiceInstaller   ← + IAdProvider→MockAdProvider, AdService ✅
+    ├── ProjectConfigInstaller    ← AdConfig, ItemConfig
+    ├── ProjectServiceInstaller   ← IAdProvider→MockAdProvider, AdService,
+    │                                ResourcePopupService
     ├── StageMapInstaller, StageMapViewInstaller
     ├── SceneServiceInstaller
     ├── SceneViewInstaller
     └── ScenePresenterInstaller
 ```
+
+---
 
 ## 🛡️ Блокирующие препятствия ✅ РЕАЛИЗОВАНО (Variant B)
 
@@ -610,31 +716,20 @@ Assets/Match3/Scripts/
 | **Ice** | Гем заморожен, не движется, не матчится | Смежный матч | 1–2 |
 | **Box** | Нет гема, блокирует падение | Смежный матч | 1–3 |
 | **Chain** | Гем виден. HP=1 участвует в матче; HP>1 смежный удар | HP=1: прямой матч; HP>1: смежный | 1–2 |
-| **Rock** | Нет гема, как Box но прочнее. Визуальное разнообразие | Смежный матч | 2–4 |
+| **Rock** | Нет гема, как Box но прочнее | Смежный матч | 2–4 |
 
 ### Архитектура (Variant B)
 ```
 Препятствия хранятся в BoardCell (ObstacleType + ObstacleHp + MaxObstacleHp).
 
-BoardCell автоматически обновляет поведение:
-  CanBeMoved     = !Locked && !HasObstacle && gem?.CanMove
-  CanFall        = !Locked && !HasObstacle && ...
-  CanMatch()     = gem != null && !Ice && !(Chain && hp > 1)
-  BlockFall      = Locked || HasObstacle || ...
-  IsEmpty()      = !HasObstacle && gem == null && incoming == null
-
-CellData: obstacleType + obstacleHp (0 = дефолт для типа)
-
-BoardService владеет логикой:
-  ProcessObstaclesFromMatch(matchedCells)  — удары по правилам типа
-  HitObstaclesDirectly(cells)             — прямой удар (бустеры, супер-фишки)
-  GetObstacles()                          — для рендеринга
+BoardService:
+  ProcessObstaclesFromMatch(matchedCells)
+  HitObstaclesDirectly(cells)
+  GetObstacles()
   OnObstacleHit, OnObstacleCleared, OnAllObstaclesCleared
 
-LayerService — удалён (stub-файл, удалить вручную)
 LayerPresenter переписан на события BoardService
 LayerView: SpawnObstacleCell / UpdateCellHp / ClearCell
-
 LevelService.CheckWinCondition: _boardService.IsAllObstaclesCleared
 ```
 
@@ -643,7 +738,9 @@ LevelService.CheckWinCondition: _boardService.IsAllObstaclesCleared
 - Обновить Level Editor (выбор типа + HP препятствия)
 - Удалить файл LayerService.cs
 
-## 📐 План генерации уровней (135 уровней, B+C)
+---
+
+## 📐 План генерации уровней (135 уровней)
 
 ### Прогрессия сложности
 | Страна | Уровни | Ходы | Цвета | Размеры досок |
@@ -669,43 +766,12 @@ LevelService.CheckWinCondition: _boardService.IsAllObstaclesCleared
 
 ### Формы досок (Hidden-ячейки)
 ```
-ROUNDED 7×7:   H.N.N.N.N.N.H  (углы срезаны)
-               N.N.N.N.N.N.N  (×5 rows)
-               H.N.N.N.N.N.H
-
-CROSS 7×7:     H.H.N.N.N.H.H  (2×2 углы скрыты)
-               H.H.N.N.N.H.H
-               N.N.N.N.N.N.N  (×3 rows)
-               H.H.N.N.N.H.H
-               H.H.N.N.N.H.H
-
-DIAMOND 7×7:   H.H.H.N.H.H.H
-               H.H.N.N.N.H.H
-               H.N.N.N.N.N.H
-               N.N.N.N.N.N.N
-               H.N.N.N.N.N.H
-               H.H.N.N.N.H.H
-               H.H.H.N.H.H.H
-
-HOURGLASS 7×7: N.N.N.N.N.N.N
-               H.N.N.N.N.N.H
-               H.H.N.N.N.H.H
-               H.H.H.N.H.H.H
-               H.H.N.N.N.H.H
-               H.N.N.N.N.N.H
-               N.N.N.N.N.N.N
-
-STAIRS 8×7:    N×7 / H.N×6 / H.N×6 / HH.N×5 / HH.N×5
-               HHH.N×4 / HHH.N×4 / HHHH.N×3
-
-T-SHAPE 8×8:   N×8 (×2 top rows)
-               HH.N×4.HH  / HHH.NN.HHH (×5 stem rows)
-```
-
-### obstacleType enum (в YAML)
-```
-0=None  1=Ice  2=Box  3=Chain  4=Rock
-cellType: 0=Normal  1=Hidden
+ROUNDED 7×7:   H.N.N.N.N.N.H / N.N.N.N.N.N.N (×5) / H.N.N.N.N.N.H
+CROSS 7×7:     H.H.N.N.N.H.H (×2) / N.N.N.N.N.N.N (×3) / H.H.N.N.N.H.H (×2)
+DIAMOND 7×7:   симметричный ромб, центральная строка полная
+HOURGLASS 7×7: песочные часы — широкий верх/низ, узкий центр
+STAIRS 8×7:    ступени с нарастающим Hidden слева
+T-SHAPE 8×8:   2 полных строки сверху + 5 узких строк (стебель)
 ```
 
 ### AllowedNodeTypes (hex в YAML)
@@ -723,16 +789,19 @@ cellType: 0=Normal  1=Hidden
 - **#7** LevelState enum вынести из LevelService.cs в Core/Enums/
 - UI анимации попапов (DOTween — вылет/исчезновение)
 - Анимация вылета иконок наград в StageRewardPopupView
-- LevelConfig.Rewards[] — выдаются через RewardService при первом прохождении уровня ✅
+- LevelConfig.Rewards[] — выдаются через RewardService при первом прохождении уровня
 - Комбо-свопы двух супер-фишек
 - Визуальные эффекты взрывов (частицы)
+- BoostPresenter: добавить иконки Hint/Shuffle в GemConfig или отдельный BoostConfig
 - WalletView — добавить в Canvas StageMap и Game сцен, назначить TMP-слоты в инспекторе
 - EconomyConfig — создать ассет через Match3/Configs/Economy и назначить в ProjectConfigInstaller
+- ItemConfig — создать ассет через Match3/Configs/Item, заполнить иконки и цены
+- AdConfig — создать ассет через Match3/Configs/Ad, заполнить UnitId
 - SceneViewInstaller + StageMapViewInstaller — добавить биндинг WalletView.FromComponentInHierarchy
-- StageStoryConfig — назначить в нужные StageConfig через инспектор после создания ассетов
-- Story TODO: при подключении локализации заменить FallbackText на чтение по LocalizationId во всех ApplyStory()
-- **AdConfig** — создать ассет через Match3/Configs/Ad, заполнить UnitId и назначить в ProjectConfigInstaller ✅ НОВЫЙ
-- **ProjectServiceInstaller** — добавить биндинги IAdProvider→MockAdProvider и AdService ✅ НОВЫЙ
-- **GameFlowService** — вызывать AdService.RegisterLevelCompleted() + TryShowInterstitialAsync() после победы ✅ НОВЫЙ
-- **LevelResultView** — добавить кнопку "Продолжить" → AdService.ShowRewarded(ContinueGame) → +5 ходов ✅ НОВЫЙ
-- При подключении реального SDK — создать AdMobProvider : IAdProvider, сменить биндинг в Installer
+- StageStoryConfig — назначить в нужные StageConfig через инспектор
+- Story: при локализации заменить FallbackText на чтение по LocalizationId
+- При подключении реального SDK — создать AdMobProvider : IAdProvider, сменить биндинг
+- Заменить dev-цвета в LayerView на спрайты (ObstacleConfig)
+- Обновить Level Editor (выбор типа + HP препятствия)
+- Удалить файл LayerService.cs
+- AddDebugStarterPack() — удалить после реализации реальных наград

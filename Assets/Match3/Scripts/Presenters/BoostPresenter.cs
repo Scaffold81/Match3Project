@@ -20,6 +20,7 @@ namespace Match3.Presenters
         private readonly BackpackView     _backpackView;
         private readonly ActiveBoostView  _activeBoostView;
         private readonly GemConfig        _gemConfig;
+        private readonly ItemConfig       _itemConfig;
 
         private readonly CompositeDisposable _disposables = new();
 
@@ -29,17 +30,21 @@ namespace Match3.Presenters
             InventoryService inventoryService,
             BackpackView     backpackView,
             ActiveBoostView  activeBoostView,
-            GemConfig        gemConfig)
+            GemConfig        gemConfig,
+            ItemConfig       itemConfig)
         {
             _boostService     = boostService;
             _inventoryService = inventoryService;
             _backpackView     = backpackView;
             _activeBoostView  = activeBoostView;
             _gemConfig        = gemConfig;
+            _itemConfig       = itemConfig;
         }
 
         public void Initialize()
         {
+            _backpackView.SetIcons(_itemConfig);
+
             foreach (var boost in InventoryService.AllBoosts)
             {
                 var captured = boost;
@@ -75,24 +80,15 @@ namespace Match3.Presenters
 
         private void OnBoostSelected(BoostType boost)
         {
-            Sprite? icon = null;
+            var icon = _itemConfig.GetBoostIcon(boost);
 
-            if (boost == BoostType.Hint || boost == BoostType.Shuffle)
-            {
-                // TODO: добавить иконки Hint/Shuffle в GemConfig или отдельный BoostConfig
-                Debug.LogWarning($"[BoostPresenter] Иконка для {boost} не настроена в GemConfig");
-            }
-            else
-            {
-                icon = _gemConfig.GetSuperGemIcon(boost.ToSuperGemType())?.Icon;
-            }
+            if (icon == null)
+                Debug.LogWarning($"[BoostPresenter] Иконка для {boost} не назначена в ItemConfig");
 
             var fromPos = _backpackView.GetIconWorldPosition(boost);
             _activeBoostView.ShowBoost(
                 icon ?? Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 4, 4), Vector2.one * 0.5f),
                 fromPos);
-
-            Debug.LogWarning($"[BoostPresenter] Буст {boost} активирован — иконка в шапке");
         }
 
         public void Dispose() => _disposables.Dispose();
