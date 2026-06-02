@@ -21,7 +21,7 @@ namespace Match3.Services
         private readonly RewardService        _rewardService;
         private readonly WorldMapConfig       _worldMapConfig;
         private readonly GemConfig            _gemConfig;
-        private readonly RewardIconConfig     _rewardIconConfig;
+        private readonly ItemConfig           _itemConfig;
         private readonly ISceneManagerService _sceneManagerService;
         private readonly GameLoopController   _gameLoopController;
         private readonly LevelTaskPopupView   _levelTaskPopupView;
@@ -39,7 +39,7 @@ namespace Match3.Services
             RewardService        rewardService,
             WorldMapConfig       worldMapConfig,
             GemConfig            gemConfig,
-            RewardIconConfig     rewardIconConfig,
+            ItemConfig           itemConfig,
             ISceneManagerService sceneManagerService,
             GameLoopController   gameLoopController,
             LevelTaskPopupView   levelTaskPopupView,
@@ -50,14 +50,12 @@ namespace Match3.Services
             _rewardService        = rewardService;
             _worldMapConfig       = worldMapConfig;
             _gemConfig            = gemConfig;
-            _rewardIconConfig     = rewardIconConfig;
+            _itemConfig           = itemConfig;
             _sceneManagerService  = sceneManagerService;
             _gameLoopController   = gameLoopController;
             _levelTaskPopupView   = levelTaskPopupView;
             _stageRewardPopupView = stageRewardPopupView;
         }
-
-        // ── IInitializable ────────────────────────────────────────────────────
 
         public void Initialize()
         {
@@ -85,8 +83,6 @@ namespace Match3.Services
             ShowCurrentLevelTask();
         }
 
-        // ── Попап задания ─────────────────────────────────────────────────────
-
         private void ShowCurrentLevelTask()
         {
             var address = _progressService.CurrentAddress.CurrentValue;
@@ -100,7 +96,7 @@ namespace Match3.Services
             }
 
             var objectives = config.Objectives;
-            var icons      = new UnityEngine.Sprite?[objectives.Length];
+            var icons      = new Sprite?[objectives.Length];
             for (var i = 0; i < objectives.Length; i++)
                 icons[i] = _gemConfig.GetVisual(objectives[i].nodeType)?.Sprite;
 
@@ -119,8 +115,6 @@ namespace Match3.Services
             _levelTaskPopupView.Hide();
             _gameLoopController.EnableInput();
         }
-
-        // ── Победа ────────────────────────────────────────────────────────────
 
         private void HandleWin()
         {
@@ -148,11 +142,10 @@ namespace Match3.Services
                 _progressService.SetPendingCountryReward(address.CountryIndex);
 
             var rewards     = stage.StageRewards;
-            var rewardIcons = new UnityEngine.Sprite?[rewards.Length];
+            var rewardIcons = new Sprite?[rewards.Length];
             for (var i = 0; i < rewards.Length; i++)
-                rewardIcons[i] = _rewardIconConfig.GetIcon(rewards[i].Type, rewards[i].Boost);
+                rewardIcons[i] = _itemConfig.GetIcon(rewards[i].Type, rewards[i].Boost);
 
-            // WinStory берём с последнего уровня этапа
             var winStory = stage.StoryConfig?.GetLevelStory(address.LevelIndex)?.WinStory;
 
             _stageRewardPopupView.Show(stage.StageName, rewards, rewardIcons, winStory);
@@ -165,22 +158,17 @@ namespace Match3.Services
             _sceneManagerService.LoadSceneAsync(SceneId.Game);
         }
 
-        // ── Поражение ─────────────────────────────────────────────────────────
-
         private void HandleLose()
         {
             var address = _progressService.CurrentAddress.CurrentValue;
             var stage   = _worldMapConfig.GetStage(address.CountryIndex, address.StageIndex);
 
-            // Явно фиксируем адрес — гарантируем что рестарт вернётся на этот же уровень
             _progressService.SetCurrentAddress(address);
 
             var loseStory = stage?.StoryConfig?.GetLevelStory(address.LevelIndex)?.LoseStory;
 
             _onLevelLost.OnNext((stage?.SadCharacterSprite, loseStory));
         }
-
-        // ── Прогресс ─────────────────────────────────────────────────────────
 
         private void SaveProgress()
         {
@@ -195,12 +183,8 @@ namespace Match3.Services
             _progressService.SetStars(address, stars);
         }
 
-        // ── Навигация ─────────────────────────────────────────────────────────
-
         private void GoToMap() =>
             _sceneManagerService.LoadSceneAsync(SceneId.StageMap);
-
-        // ── IDisposable ───────────────────────────────────────────────────────
 
         public void Dispose()
         {

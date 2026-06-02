@@ -156,6 +156,6 @@ MonoBehaviour:
   _boardConfig: {fileID: 11400000, guid: a5f15cf0257279a468674fdb40664eb6, type: 2}
   _animationConfig: {fileID: 11400000, guid: ad2d71b57d341b74ab0a76f8716c98cd, type: 2}
   _worldMapConfig: {fileID: 11400000, guid: 898a14c3ecca4da4c94a95fafa65c973, type: 2}
-  _rewardIconConfig: {fileID: 11400000, guid: 83b90e8048b5b4b4b894439dc7b4d612, type: 2}
+  _itemConfig: {fileID: 11400000, guid: c6fcece3560b26148a6c4fa0030d2931, type: 2}
   _economyConfig: {fileID: 11400000, guid: 44ace1de3fb770f47bcd13948b8147b7, type: 2}
   _adConfig: {fileID: 11400000, guid: 9a9fb5527eacd5f419803ccf04f53d18, type: 2}

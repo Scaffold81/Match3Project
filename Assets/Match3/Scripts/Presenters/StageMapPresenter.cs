@@ -24,12 +24,12 @@ namespace Match3.Presenters
         private readonly ResourcePopupService     _resourcePopupService;
         private readonly EconomyConfig            _economyConfig;
         private readonly AdConfig                 _adConfig;
+        private readonly ItemConfig               _itemConfig;
         private readonly ISceneManagerService     _sceneManagerService;
         private readonly StageMapView             _stageMapView;
         private readonly LevelSelectPopupView     _levelSelectPopupView;
         private readonly CountryCompletePopupView _countryCompletePopupView;
         private readonly GemConfig                _gemConfig;
-        private readonly RewardIconConfig         _rewardIconConfig;
 
         private readonly CompositeDisposable _disposables = new();
 
@@ -46,12 +46,12 @@ namespace Match3.Presenters
             ResourcePopupService      resourcePopupService,
             EconomyConfig             economyConfig,
             AdConfig                  adConfig,
+            ItemConfig                itemConfig,
             ISceneManagerService      sceneManagerService,
             StageMapView              stageMapView,
             LevelSelectPopupView      levelSelectPopupView,
             CountryCompletePopupView  countryCompletePopupView,
-            GemConfig                 gemConfig,
-            RewardIconConfig          rewardIconConfig)
+            GemConfig                 gemConfig)
         {
             _worldMapConfig           = worldMapConfig;
             _progressService          = progressService;
@@ -60,12 +60,12 @@ namespace Match3.Presenters
             _resourcePopupService     = resourcePopupService;
             _economyConfig            = economyConfig;
             _adConfig                 = adConfig;
+            _itemConfig               = itemConfig;
             _sceneManagerService      = sceneManagerService;
             _stageMapView             = stageMapView;
             _levelSelectPopupView     = levelSelectPopupView;
             _countryCompletePopupView = countryCompletePopupView;
             _gemConfig                = gemConfig;
-            _rewardIconConfig         = rewardIconConfig;
         }
 
         public void Initialize()
@@ -76,8 +76,6 @@ namespace Match3.Presenters
             ScrollToCurrentProgress();
             CheckPendingCountryReward();
         }
-
-        // ── Refresh ───────────────────────────────────────────────────────────
 
         private void RefreshMap()
         {
@@ -91,8 +89,6 @@ namespace Match3.Presenters
                 getColor:   c => _worldMapConfig.GetCountry(c)?.SectionColor ?? Color.white,
                 isUnlocked: c => _progressService.IsCountryUnlocked(c));
         }
-
-        // ── Подписки ──────────────────────────────────────────────────────────
 
         private void SubscribeNodes()
         {
@@ -120,8 +116,6 @@ namespace Match3.Presenters
                 .AddTo(_disposables);
         }
 
-        // ── Логика ────────────────────────────────────────────────────────────
-
         private void OnStageClicked(StageNodeView node)
         {
             var stage = _worldMapConfig.GetStage(node.countryIndex, node.stageIndex);
@@ -147,7 +141,7 @@ namespace Match3.Presenters
 
             var rewardIcons = new Sprite?[rewards.Length];
             for (var i = 0; i < rewards.Length; i++)
-                rewardIcons[i] = _rewardIconConfig.GetIcon(rewards[i].Type, rewards[i].Boost);
+                rewardIcons[i] = _itemConfig.GetIcon(rewards[i].Type, rewards[i].Boost);
 
             var request = new ResourcePopupRequest
             {
@@ -185,7 +179,7 @@ namespace Match3.Presenters
             var rewards     = stage.StageRewards;
             var rewardIcons = new Sprite?[rewards.Length];
             for (var i = 0; i < rewards.Length; i++)
-                rewardIcons[i] = _rewardIconConfig.GetIcon(rewards[i].Type, rewards[i].Boost);
+                rewardIcons[i] = _itemConfig.GetIcon(rewards[i].Type, rewards[i].Boost);
 
             _levelSelectPopupView.Show(
                 levelTitle:      stage.StageName,
@@ -205,8 +199,6 @@ namespace Match3.Presenters
             _sceneManagerService.LoadSceneAsync(SceneId.Game);
         }
 
-        // ── Награда за страну ─────────────────────────────────────────────────
-
         private void CheckPendingCountryReward()
         {
             var countryIndex = _progressService.GetPendingCountryReward();
@@ -222,7 +214,7 @@ namespace Match3.Presenters
 
             var rewardIcons = new Sprite?[country.CountryRewards.Length];
             for (var i = 0; i < country.CountryRewards.Length; i++)
-                rewardIcons[i] = _rewardIconConfig.GetIcon(
+                rewardIcons[i] = _itemConfig.GetIcon(
                     country.CountryRewards[i].Type,
                     country.CountryRewards[i].Boost);
 
@@ -232,8 +224,6 @@ namespace Match3.Presenters
                 country.CountryRewards,
                 rewardIcons);
         }
-
-        // ── Агрегация целей этапа ─────────────────────────────────────────────
 
         private static ObjectiveData[] AggregateStageObjectives(StageConfig stage)
         {

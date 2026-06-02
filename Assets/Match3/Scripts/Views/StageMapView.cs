@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using R3;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -23,6 +24,9 @@ namespace Match3.Views
         [SerializeField] public CountryNodeView countryPrefab = null!;
         [SerializeField] public StageNodeView   stagePrefab   = null!;
 
+        [Header("Кнопки HUD")]
+        [SerializeField] private Button _backpackButton = null!;
+
         [Header("Параметры зигзага")]
         [SerializeField] public float zigzagOffsetX = 120f;
         [SerializeField] public float itemSpacingY  = 160f;
@@ -41,7 +45,6 @@ namespace Match3.Views
             if (_placeNodes)
             {
                 _placeNodes = false;
-                // Откладываем на следующий кадр — нельзя менять сцену внутри OnValidate
                 UnityEditor.EditorApplication.delayCall += PlaceNodesInEditor;
             }
 
@@ -54,7 +57,7 @@ namespace Match3.Views
 
         private void PlaceNodesInEditor()
         {
-            if (this == null) return; // объект мог быть удалён
+            if (this == null) return;
 
             if (countryPrefab == null || stagePrefab == null)
             {
@@ -71,7 +74,6 @@ namespace Match3.Views
 
             for (var c = 0; c < CountryCount; c++)
             {
-                // CountryNode
                 var countryGo = (GameObject)UnityEditor.PrefabUtility
                     .InstantiatePrefab(countryPrefab.gameObject, _content);
                 UnityEditor.Undo.RegisterCreatedObjectUndo(countryGo, "CountryNode");
@@ -80,7 +82,6 @@ namespace Match3.Views
                 SetPosition(countryGo, rowIndex);
                 rowIndex++;
 
-                // StageNodes
                 for (var s = 0; s < StagesPerCountry; s++)
                 {
                     var stageGo = (GameObject)UnityEditor.PrefabUtility
@@ -95,7 +96,6 @@ namespace Match3.Views
                 }
             }
 
-            // Подгоняем высоту Content
             var sd = _content.sizeDelta;
             sd.y = itemSpacingY * rowIndex + itemSpacingY;
             _content.sizeDelta = sd;
@@ -141,9 +141,19 @@ namespace Match3.Views
         private readonly List<StageNodeView>   _stageNodes   = new();
         private readonly List<CountryNodeView> _countryNodes = new();
 
+        private readonly Subject<Unit> _onBackpackClicked = new();
+        public Observable<Unit> OnBackpackClicked => _onBackpackClicked;
+
         public List<StageNodeView>   StageNodes   => _stageNodes;
         public List<CountryNodeView> CountryNodes => _countryNodes;
         public RectTransform         Content      => _content;
+
+        private void Awake()
+        {
+            _backpackButton.onClick.AddListener(() => _onBackpackClicked.OnNext(Unit.Default));
+        }
+
+        private void OnDestroy() => _onBackpackClicked.Dispose();
 
         public void RefreshStages(
             Func<int, int, int>  getStageStars,
