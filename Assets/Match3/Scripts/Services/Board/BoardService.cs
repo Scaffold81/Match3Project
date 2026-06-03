@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using Match3.Configs;
 using Match3.Core;
 using Match3.Core.Enums;
@@ -145,48 +144,10 @@ namespace Match3.Services.Board
             if (!_cells.TryGetValue(b, out var cellB))
                 throw new ArgumentOutOfRangeException(nameof(b));
 
-            var typeA = cellA.ContainingGem?.GemType ?? NodeType.None;
-            var typeB = cellB.ContainingGem?.GemType ?? NodeType.None;
-
             (cellA.ContainingGem, cellB.ContainingGem) = (cellB.ContainingGem, cellA.ContainingGem);
 
             if (cellA.ContainingGem != null) cellA.ContainingGem.MoveTo(a);
             if (cellB.ContainingGem != null) cellB.ContainingGem.MoveTo(b);
-
-            Debug.LogWarning(
-                $"[BoardService] ExchangeGems:\n" +
-                $"  {a}: {typeA} → {cellA.ContainingGem?.GemType ?? NodeType.None}\n" +
-                $"  {b}: {typeB} → {cellB.ContainingGem?.GemType ?? NodeType.None}\n" +
-                DumpBoard());
-        }
-
-        private string DumpBoard()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("  [Board state]");
-
-            for (var row = 0; row < Rows; row++)
-            {
-                sb.Append($"  row{row}: ");
-                for (var col = 0; col < Columns; col++)
-                {
-                    var pos = new Vector2Int(row, col);
-                    string label;
-                    if (_cells.TryGetValue(pos, out var cell))
-                    {
-                        var t = cell.ContainingGem?.GemType ?? NodeType.None;
-                        label = t == NodeType.None ? "No" : t.ToString()[..2];
-                    }
-                    else
-                    {
-                        label = "XX";
-                    }
-                    sb.Append($"[{col}]{label,-4}");
-                }
-                sb.AppendLine();
-            }
-
-            return sb.ToString();
         }
 
         public void LockCell(Vector2Int pos, bool locked)
@@ -277,7 +238,6 @@ namespace Match3.Services.Board
                 result.Add((pos, GetRandomAllowedType()));
             }
 
-            Debug.LogWarning($"[BoardService] GetSpawnList: {result.Count} пустых ячеек найдено");
             return result;
         }
 
@@ -457,7 +417,6 @@ namespace Match3.Services.Board
                 }
             } while (anyMoved);
 
-            Debug.LogWarning($"[BoardService] ComputeAndApplyFalls: {moves.Count} перемещений\n{DumpBoard()}");
             return moves;
         }
 

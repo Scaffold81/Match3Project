@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50b0e762e91984240907c3d3dd4d3271, type: 3}
+  m_Name: Stage07
+  m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.StageConfig
+  <StageName>k__BackingField: Stage 7
+  <StageIcon>k__BackingField: {fileID: 0}
+  <CharacterSprite>k__BackingField: {fileID: 0}
+  <SadCharacterSprite>k__BackingField: {fileID: 0}
+  <StoryConfig>k__BackingField: {fileID: 11400000, guid: 1e92fc2543c33794280d7d43f199b91a, type: 2}
+  <StageRewards>k__BackingField: []
+  <IsBonusStage>k__BackingField: 0
+  <SuperPrize>k__BackingField: {fileID: 0}
+  <Levels>k__BackingField:
+  - {fileID: 11400000, guid: d15e3704b6367ed4f95a26ab142118af, type: 2}
+  - {fileID: 11400000, guid: 24183a7c472f6c2458584de3be543357, type: 2}
+  - {fileID: 11400000, guid: c14a6c80b195c4944bd1f09e1b2c2c0b, type: 2}

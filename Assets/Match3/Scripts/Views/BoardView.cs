@@ -60,11 +60,6 @@ namespace Match3.Views
             ApplyContainer(_cellContainer, totalWidth, totalHeight, containerPos);
 
             _layoutReady = true;
-
-            Debug.LogWarning(
-                $"[BoardView] board={boardWidth:F0}×{boardHeight:F0} " +
-                $"cellSize={_cellSize:F1} spacing={spacing} gemPad={_boardConfig.GemPadding} " +
-                $"total={totalWidth:F0}×{totalHeight:F0}");
         }
 
         private static void ApplyContainer(

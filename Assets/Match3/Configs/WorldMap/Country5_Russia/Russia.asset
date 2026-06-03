@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3edbe9718fdab9c41b39afb9ce91a3fb, type: 3}
+  m_Name: Russia
+  m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.CountryConfig
+  <CountryName>k__BackingField: Egypt
+  <CountryIcon>k__BackingField: {fileID: 0}
+  <LockedIcon>k__BackingField: {fileID: 0}
+  <SectionColor>k__BackingField: {r: 0.94, g: 0.87, b: 0.6, a: 1}
+  <GameBackgroundSprite>k__BackingField: {fileID: 0}
+  <CharacterSprite>k__BackingField: {fileID: 0}
+  <CountryRewards>k__BackingField: []
+  <Stages>k__BackingField:
+  - {fileID: 11400000, guid: d161809d3f053a94991dc4e170076fff, type: 2}
+  - {fileID: 11400000, guid: 70394f566179cde47bd7ef1eba97fe73, type: 2}
+  - {fileID: 11400000, guid: c8f9caf00178ca74598763c7c7d27347, type: 2}
+  - {fileID: 11400000, guid: 13bcfa8525f02bc4684c07105d0d6908, type: 2}
+  - {fileID: 11400000, guid: 8a64f722bc35db14da45880e5f6fac18, type: 2}
+  - {fileID: 11400000, guid: b75a58485bb7bd44990175c1336cf3ef, type: 2}
+  - {fileID: 11400000, guid: 56e35a383d63cc94eabcaf4387653e06, type: 2}
+  - {fileID: 11400000, guid: 776acb7252d2d684089e791832538bda, type: 2}
+  - {fileID: 11400000, guid: 34daf518f5616004a9ac1be5c6556a65, type: 2}

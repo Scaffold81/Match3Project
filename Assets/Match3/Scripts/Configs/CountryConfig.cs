@@ -26,6 +26,10 @@ namespace Match3.Configs
         public Color SectionColor { get; private set; } = Color.white;
 
         [field: SerializeField]
+        [field: Tooltip("Фоновый спрайт для игровой сцены (используется если у этапа нет своего override)")]
+        public Sprite? GameBackgroundSprite { get; private set; }
+
+        [field: SerializeField]
         [field: Tooltip("Персонаж на попапе завершения страны")]
         public Sprite? CharacterSprite { get; private set; }
 

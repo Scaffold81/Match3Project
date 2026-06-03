@@ -30,12 +30,8 @@ namespace Match3.Views
             if (!_inputEnabled) return;
 
             if (!ScreenToCell(e.position, out var cell))
-            {
-                Debug.LogWarning($"[BoardInput] Клик в {e.position} — не удалось определить ячейку");
                 return;
-            }
 
-            Debug.LogWarning($"[BoardInput] Клик — ячейка: {cell}");
             OnCellClicked?.Invoke(cell);
         }
 

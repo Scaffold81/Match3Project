@@ -54,10 +54,7 @@ namespace Match3.Services.Boost
         public void SelectBoost(BoostType boost)
         {
             if (!_inventoryService.HasAny(boost))
-            {
-                Debug.LogWarning($"[BoostService] Нет {boost} в инвентаре — отказ");
                 return;
-            }
 
             // Мгновенные бусты — применяем сразу
             if (boost == BoostType.Hint)
@@ -75,7 +72,6 @@ namespace Match3.Services.Boost
             // Супер-фишки — ждём клик на поле
             _activeBoost.Value = boost;
             _onBoostSelected.OnNext(boost);
-            Debug.LogWarning($"[BoostService] Буст выбран: {boost} — ждём клик на поле");
         }
 
         /// <summary>
@@ -87,7 +83,6 @@ namespace Match3.Services.Boost
             var cancelled = _activeBoost.Value;
             _activeBoost.Value = BoostType.None;
             _onBoostCancelled.OnNext(cancelled);
-            Debug.LogWarning($"[BoostService] Буст отменён: {cancelled}");
         }
 
         // ── Применение на поле ────────────────────────────────────────────────
@@ -109,7 +104,6 @@ namespace Match3.Services.Boost
 
             _activeBoost.Value = BoostType.None;
             _onBoostApplied.OnNext((boost, pos));
-            Debug.LogWarning($"[BoostService] Буст применён: {boost} в {pos}");
             return true;
         }
 
@@ -119,23 +113,18 @@ namespace Match3.Services.Boost
         {
             var swaps = _hintService.GetPossibleSwaps();
             if (swaps.Count == 0)
-            {
-                Debug.LogWarning("[BoostService] Hint: нет доступных ходов");
                 return;
-            }
 
             if (!_inventoryService.TrySpend(BoostType.Hint)) return;
 
             var hint = swaps[UnityEngine.Random.Range(0, swaps.Count)];
             _onHintApplied.OnNext(hint);
-            Debug.LogWarning($"[BoostService] Hint применён: {hint.from} → {hint.to}");
         }
 
         private void ApplyShuffle()
         {
             if (!_inventoryService.TrySpend(BoostType.Shuffle)) return;
             _onShuffleApplied.OnNext(Unit.Default);
-            Debug.LogWarning("[BoostService] Shuffle применён");
         }
 
         public void Dispose()

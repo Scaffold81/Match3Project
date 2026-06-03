@@ -29,25 +29,20 @@ namespace Match3.Views
             _closeButton.onClick.AddListener(Hide);
 
             GetComponentsInChildren(true, _cards);
-            Debug.LogWarning($"ShopView.Awake: found {_cards.Count} cards in children");
         }
 
         public void Bind(ShopConfig shopConfig, ItemConfig itemConfig)
         {
-            Debug.LogWarning($"ShopView.Bind: shopConfig.Items={shopConfig.Items.Length}, cards={_cards.Count}");
-
             foreach (var card in _cards)
             {
                 var data = shopConfig.FindById(card.PurchaseId);
 
                 if (data == null)
                 {
-                    Debug.LogWarning($"ShopView.Bind: no config item for purchaseId='{card.PurchaseId}' — hiding card");
                     card.gameObject.SetActive(false);
                     continue;
                 }
 
-                Debug.LogWarning($"ShopView.Bind: binding card '{card.PurchaseId}' → '{data.Title}'");
                 card.Setup(data, itemConfig);
                 card.OnBuyClicked
                     .Subscribe(id => _onBuyClicked.OnNext(id));

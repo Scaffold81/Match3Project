@@ -422,6 +422,8 @@ GameObject:
   - component: {fileID: 7534268589654888190}
   - component: {fileID: 3900502367752989814}
   - component: {fileID: 5415864106600566928}
+  - component: {fileID: 857413947420887670}
+  - component: {fileID: 8512872459958491344}
   m_Layer: 0
   m_Name: Background
   m_TagString: Untagged
@@ -444,7 +446,7 @@ RectTransform:
   m_Father: {fileID: 1477457754203797486}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -469,16 +471,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.101960786, g: 0.101960786, b: 0.18039216, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: -2707324945123152895, guid: 9fee3714a81aa6d4081645ec90aedc7f, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -486,6 +488,33 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &857413947420887670
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1148755081337898074}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1451a7c46ffe9b64b8e51a8d566be5f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Match3.Views.GameBackgroundView
+  _background: {fileID: 5415864106600566928}
+--- !u!114 &8512872459958491344
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1148755081337898074}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86710e43de46f6f4bac7c8e50813a599, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.AspectRatioFitter
+  m_AspectMode: 4
+  m_AspectRatio: 1
 --- !u!1 &1221975199138718149
 GameObject:
   m_ObjectHideFlags: 0
@@ -3468,6 +3497,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: LevelResultPopup
       objectReference: {fileID: 0}
+    - target: {fileID: 6027651576330284825, guid: 0876790334f14754e91c3bdff420807e, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8035044383734946570, guid: 0876790334f14754e91c3bdff420807e, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -3617,6 +3650,10 @@ PrefabInstance:
     - target: {fileID: 520722118292267044, guid: 0b0595c377ba1914590a58bf601113a7, type: 3}
       propertyPath: m_Name
       value: BackpackGame
+      objectReference: {fileID: 0}
+    - target: {fileID: 520722118292267044, guid: 0b0595c377ba1914590a58bf601113a7, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 651765576314358076, guid: 0b0595c377ba1914590a58bf601113a7, type: 3}
       propertyPath: m_AnchorMax.y
@@ -3868,6 +3905,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: LevelRewardPopup
       objectReference: {fileID: 0}
+    - target: {fileID: 6291125046681099675, guid: 1e5cbe67a9d04e84e846012471a2cde5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7740037952839149960, guid: 1e5cbe67a9d04e84e846012471a2cde5, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -3969,6 +4010,10 @@ PrefabInstance:
     - target: {fileID: 229876946095032506, guid: 91b55e3c2f84d2d44ae3bac8ce13fe08, type: 3}
       propertyPath: m_Name
       value: 'LevelTaskPopup '
+      objectReference: {fileID: 0}
+    - target: {fileID: 229876946095032506, guid: 91b55e3c2f84d2d44ae3bac8ce13fe08, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4729925976949826169, guid: 91b55e3c2f84d2d44ae3bac8ce13fe08, type: 3}
       propertyPath: m_Pivot.x

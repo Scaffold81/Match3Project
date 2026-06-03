@@ -46,28 +46,15 @@ namespace Match3.Services.Swap
         /// </summary>
         public void TrySelect(Vector2Int pos)
         {
-            if (_isLocked)
-            {
-                Debug.LogWarning($"[SwapService] TrySelect({pos}) — ввод заблокирован, игнорируем");
-                return;
-            }
+            if (_isLocked) return;
 
-            if (!_boardService.IsNormalCell(pos))
-            {
-                Debug.LogWarning($"[SwapService] TrySelect({pos}) — не нормальная ячейка");
-                return;
-            }
+            if (!_boardService.IsNormalCell(pos)) return;
 
-            if (!_boardService.TryGetCell(pos, out var cell) || !cell.CanBeMoved)
-            {
-                Debug.LogWarning($"[SwapService] TrySelect({pos}) — ячейка не может двигаться");
-                return;
-            }
+            if (!_boardService.TryGetCell(pos, out var cell) || !cell.CanBeMoved) return;
 
             if (_firstCell == null)
             {
                 _firstCell = pos;
-                Debug.LogWarning($"[SwapService] Первая фишка выбрана: {pos}");
                 return;
             }
 
@@ -75,19 +62,16 @@ namespace Match3.Services.Swap
 
             if (first == pos)
             {
-                Debug.LogWarning($"[SwapService] Клик по той же фишке: {pos} — отменяем выбор");
                 _firstCell = null;
                 return;
             }
 
             if (!_boardService.AreNeighbors(first, pos))
             {
-                Debug.LogWarning($"[SwapService] {pos} не сосед для {first} — переназначаем первую на {pos}");
                 _firstCell = pos;
                 return;
             }
 
-            Debug.LogWarning($"[SwapService] Вторая фишка выбрана: {pos} — запрашиваем своп {first} → {pos}");
             _firstCell = null;
 
             _boardService.LockCell(first, true);

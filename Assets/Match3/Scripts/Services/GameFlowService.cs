@@ -26,6 +26,7 @@ namespace Match3.Services
         private readonly GameLoopController   _gameLoopController;
         private readonly LevelTaskPopupView   _levelTaskPopupView;
         private readonly StageRewardPopupView _stageRewardPopupView;
+        private readonly GameBackgroundView   _gameBackgroundView;
 
         private readonly CompositeDisposable _disposables = new();
 
@@ -43,7 +44,8 @@ namespace Match3.Services
             ISceneManagerService sceneManagerService,
             GameLoopController   gameLoopController,
             LevelTaskPopupView   levelTaskPopupView,
-            StageRewardPopupView stageRewardPopupView)
+            StageRewardPopupView stageRewardPopupView,
+            GameBackgroundView   gameBackgroundView)
         {
             _levelService         = levelService;
             _progressService      = progressService;
@@ -55,11 +57,13 @@ namespace Match3.Services
             _gameLoopController   = gameLoopController;
             _levelTaskPopupView   = levelTaskPopupView;
             _stageRewardPopupView = stageRewardPopupView;
+            _gameBackgroundView   = gameBackgroundView;
         }
 
         public void Initialize()
         {
             _stageRewardPopupView.Hide();
+            ApplyBackground();
 
             _levelService.OnLevelWon
                 .Take(1)
@@ -81,6 +85,16 @@ namespace Match3.Services
                 .AddTo(_disposables);
 
             ShowCurrentLevelTask();
+        }
+
+        private void ApplyBackground()
+        {
+            var address = _progressService.CurrentAddress.CurrentValue;
+            var country = _worldMapConfig.GetCountry(address.CountryIndex);
+            var stage   = _worldMapConfig.GetStage(address.CountryIndex, address.StageIndex);
+
+            var sprite = stage?.BackgroundOverride ?? country?.GameBackgroundSprite;
+            _gameBackgroundView.SetBackground(sprite);
         }
 
         private void ShowCurrentLevelTask()

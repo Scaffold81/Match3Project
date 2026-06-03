@@ -74,7 +74,6 @@ namespace Match3.Presenters
             if (iconData != null) view.SetSuperIcon(iconData);
             else                  view.SetSuperGemType(superGemType);
             view.PlaySuperSpawn(_animConfig.FallDuration);
-            Debug.LogWarning($"[BoardPresenter] Супер-фишка: {superGemType} ({nodeType}) в {pos}");
             return view;
         }
 
@@ -111,7 +110,6 @@ namespace Match3.Presenters
             });
 
             await UniTask.WhenAll(tcsA.Task, tcsB.Task).AttachExternalCancellation(ct);
-            Debug.LogWarning($"[BoardPresenter] Swap завершён: {from}↔{to}");
         }
 
         public async UniTask AnimateReturnSwapAsync(
@@ -181,8 +179,6 @@ namespace Match3.Presenters
             await UniTask.Delay(
                 TimeSpan.FromSeconds(_animConfig.ShuffleFoldDuration),
                 cancellationToken: ct);
-
-            Debug.LogWarning("[BoardPresenter] AnimateShuffleAsync завершён");
         }
 
         // ── Falls ─────────────────────────────────────────────────────────────

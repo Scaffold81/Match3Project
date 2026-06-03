@@ -120,10 +120,6 @@ namespace Match3.Controllers
             // Ввод намеренно НЕ включается здесь.
             // GameFlowService покажет попап задания и вызовет EnableInput() после закрытия.
             _inputHandler.SetInputEnabled(false);
-
-            var address = _progressService.CurrentAddress.CurrentValue;
-            Debug.LogWarning($"[GameLoop] Уровень подготовлен: страна={address.CountryIndex} " +
-                             $"этап={address.StageIndex} уровень={address.LevelIndex}");
         }
 
         /// <summary>

@@ -33,36 +33,27 @@ namespace Match3.Presenters
             _shopService = shopService;
             _shopConfig  = shopConfig;
             _itemConfig  = itemConfig;
-
-            Debug.LogWarning("ShopPresenter: constructor called");
         }
 
         public void Initialize()
         {
-            Debug.LogWarning($"ShopPresenter.Initialize: binding view, shopConfig.Items={_shopConfig.Items.Length}");
-
             _view.Bind(_shopConfig, _itemConfig);
 
             _view.OnBuyClicked
                 .Subscribe(purchaseId => HandleBuyAsync(purchaseId, _cts.Token).Forget())
                 .AddTo(_disposables);
-
-            Debug.LogWarning("ShopPresenter.Initialize: done");
         }
 
         private async UniTaskVoid HandleBuyAsync(string purchaseId, CancellationToken ct)
         {
-            Debug.LogWarning($"ShopPresenter.HandleBuy: purchaseId={purchaseId}");
             _view.SetAllCardsInteractable(false);
 
             try
             {
                 var result = await _shopService.BuyWithIAPAsync(purchaseId, ct);
 
-                if (result == PurchaseResult.NotEnoughCoins)
-                    Debug.LogWarning($"ShopPresenter: not enough coins for '{purchaseId}'");
-                else
-                    Debug.LogWarning($"ShopPresenter: purchase result={result} for '{purchaseId}'");
+                if (result != PurchaseResult.NotEnoughCoins && result != PurchaseResult.Success)
+                    Debug.LogError($"ShopPresenter: purchase failed for '{purchaseId}' result={result}");
             }
             catch (OperationCanceledException) { }
             catch (Exception e)
@@ -77,7 +68,6 @@ namespace Match3.Presenters
 
         public void Dispose()
         {
-            Debug.LogWarning("ShopPresenter.Dispose");
             _cts.Cancel();
             _cts.Dispose();
             _disposables.Dispose();

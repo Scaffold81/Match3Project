@@ -19,6 +19,7 @@ namespace Match3.Installers
 
             Container.Bind<LevelTaskPopupView>().FromComponentInHierarchy().AsSingle();
             Container.Bind<StageRewardPopupView>().FromComponentInHierarchy().AsSingle();
+            Container.Bind<GameBackgroundView>().FromComponentInHierarchy().AsSingle();
         }
     }
 }

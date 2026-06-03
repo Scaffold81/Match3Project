@@ -30,21 +30,69 @@ static class BoostTypeExtensions
 
 ---
 
-## 🗺️ Карта уровней (StageMap) ✅ РЕАЛИЗОВАНО
+## 🗺️ Карта уровней (StageMap) ✅ РЕАЛИЗОВАНО / 📋 РАСШИРЯЕТСЯ
+
+> Подробные промпты по графике и архитектуре расширения: Docs/GlobalMap_Prompts.md
+
+### Концепция карты (обновлённая)
+Вертикальный ScrollRect. Content собирается из чередующихся секций:
+
+```
+[CountrySectionView  — Египет          ]  egypt_map.png        390×1400px
+[CountryTransitionView — Египет→Греция ]  transition_eg_gr.png 390×300px
+[CountrySectionView  — Греция          ]  greece_map.png       390×1400px
+[CountryTransitionView — Греция→Китай  ]  transition_gr_ch.png 390×300px
+...и так далее
+```
+
+**Добавить новую страну** = добавить `CountryConfig` + 2 спрайта (секция + переход).
 
 ### Структура данных
 ```
-WorldMapConfig
-  └── CountryConfig[5]           — 5 стран (Egypt, Greece, China, Maya, India)
-        └── StageConfig[10]      — 9 обычных + 1 бонусный этап на страну
-              ├── IsBonusStage   — последний (индекс 9) — бонусный, даёт SuperPrize
-              ├── StoryConfig?   — опциональная история этапа (StageStoryConfig)
-              └── LevelConfig[3] — 3 уровня на этап
+WorldMapConfig (обновить)
+  └── Countries[]   : CountryConfig[]            — секции стран
+  └── Transitions[] : CountryTransitionConfig[]  — переходы между странами (N-1 штук)
+
+CountryConfig (расширить)
+  SectionSprite  : Sprite   — фон секции (390×1400px, fade верх/низ ~150px)
+  SectionHeight  : float    — высота секции (default: 1400)
+  └── StageConfig[10]       — 9 обычных + 1 бонусный этап
+
+CountryTransitionConfig (ScriptableObject, новый)
+  menuName: "Match3/Configs/CountryTransition"
+  FromCountryIndex  : int
+  ToCountryIndex    : int
+  TransitionSprite  : Sprite  — спрайт перехода (390×300px)
+  TransitionHeight  : float   — высота (default: 300)
 
 LevelAddress { CountryIndex, StageIndex, LevelIndex }
 ```
 
-### Логика разблокировки этапов
+### Новые View
+```
+CountrySectionView (MonoBehaviour, Prefab)
+  — Image SectionSprite, высота = SectionHeight из CountryConfig
+  — содержит StageNodeView[] и CountryNodeView — как сейчас
+  Setup(CountryConfig)
+
+CountryTransitionView (MonoBehaviour, Prefab)
+  — Image TransitionSprite, высота = TransitionHeight
+  — не содержит игровых узлов
+  Setup(CountryTransitionConfig)
+```
+
+### StageMapView (обновить)
+```
+BuildContent(WorldMapConfig):
+  for i in 0..Countries.Length:
+    Instantiate(CountrySectionPrefab).Setup(Countries[i])
+    if i < Countries.Length - 1:
+      Instantiate(CountryTransitionPrefab).Setup(Transitions[i])
+
+Content.sizeDelta.y = сумма всех SectionHeight + TransitionHeight
+```
+
+### Логика разблокировки этапов (не меняется)
 ```
 StageIndex 0-8 (обычные):
   stageIdx == 0 && countryIdx == 0 → всегда открыт
@@ -82,18 +130,15 @@ CurrentAddress                   : ReadOnlyReactiveProperty<LevelAddress>
 
 ### StageMapScene — Views
 ```
-StageMapView           — ScrollRect + зигзаг-карта
-  RefreshStages(getStageStars, isStageUnlocked)
-  RefreshCountries(getIcon, getName, getColor, isUnlocked)
+StageMapView           — ScrollRect + динамический Content
+  BuildContent(WorldMapConfig)   ← новый метод
   ScrollToNode(node)
-  StageNodes   : List<StageNodeView>
-  CountryNodes : List<CountryNodeView>
-  _placeNodes  : bool → OnValidate() → PlaceNodesInEditor() (50 объектов в Content)
-  _clearNodes  : bool → OnValidate() → ClearNodesInEditor()
+  StageNodes   : List<StageNodeView>    ← собираются после BuildContent
+  CountryNodes : List<CountryNodeView>  ← собираются после BuildContent
 
 StageNodeView          — кнопка этапа (90×80px)
-  countryIndex, stageIndex — назначаются PlaceNodesInEditor
-  IsBonus   : bool         — визуальный режим бонусного этапа (золотой цвет)
+  countryIndex, stageIndex
+  IsBonus   : bool
   IsUnlocked: bool
   Refresh(totalStars, isUnlocked, isBonus)
   OnClicked : Observable<StageNodeView>
@@ -102,34 +147,58 @@ CountryNodeView        — заголовок страны (300×72px)
   countryIndex
   Refresh(icon, countryName, sectionColor, isUnlocked)
 
-LevelSelectPopupView   — попап выбора уровня
+CountrySectionView     — секция страны (новый)
+  Setup(CountryConfig)
+
+CountryTransitionView  — переход между странами (новый)
+  Setup(CountryTransitionConfig)
+
+LevelSelectPopupView   — попап выбора уровня (не меняется)
   Show(stageName, characterSprite, objectives, objectiveIcons,
-       stageRewards, rewardIcons, storySlide?)   ← storySlide опциональный
+       stageRewards, rewardIcons, storySlide?)
   Hide()
   OnPlayClicked  : Observable<Unit>
   OnCloseClicked : Observable<Unit>
 ```
 
-### StageMapPresenter (SceneContext)
+### StageMapPresenter (SceneContext, не меняется)
 ```
 Initialize():
+  _view.BuildContent(_worldMapConfig)   ← вызвать первым
   RefreshStages + RefreshCountries
   Подписка на StageNodeView.OnClicked → открыть попап
-    → передаёт stage.StoryConfig?.StageSelectStory в LevelSelectPopupView.Show()
   Подписка на LevelSelectPopupView.OnPlayClicked → SetCurrentAddress + LoadScene(Game)
   Подписка на OnCloseClicked → Hide
   ScrollToCurrentProgress()
 ```
 
-### Editor-инструменты
+### Editor-инструменты (обновить)
 ```
 Match3/Generate World Map Configs  → WorldMapConfigGenerator.cs
-Match3/Setup StageMap Scene        → StageMapUISetup.cs
-Match3/Level Editor                → LevelEditorWindow.cs
+  — добавить генерацию CountryTransitionConfig ассетов
 
-StageMapView Inspector:
-  _placeNodes = true → расставляет 50 объектов (5×CountryNode + 45×StageNode)
-  _clearNodes = true → очищает Content
+Match3/Setup StageMap Scene        → StageMapUISetup.cs
+  — заменить статическую расстановку узлов на BuildContent
+
+Match3/Level Editor                → LevelEditorWindow.cs (не меняется)
+```
+
+### Графические ассеты — TODO
+```
+Секции стран (390×1400px, fade верх/низ 150px):
+  egypt_map.png, greece_map.png, china_map.png, maya_map.png, india_map.png, russia_map.png
+
+Переходы между странами (390×300px):
+  transition_egypt_greece.png   — Средиземное море, корабль
+  transition_greece_china.png   — Шёлковый путь, верблюды
+  transition_china_maya.png     — Тихий океан, корабль
+  transition_maya_india.png     — Атлантика, мыс Доброй Надежды
+  transition_india_russia.png   — Северный путь, тройка/поезд
+
+Пины стран (256×256px, прозрачный фон):
+  egypt_pin.png, greece_pin.png, china_pin.png, maya_pin.png, india_pin.png, russia_pin.png
+
+Промпты для всех ассетов → Docs/GlobalMap_Prompts.md
 ```
 
 ---
@@ -165,8 +234,6 @@ GameFlowService.Initialize()
 
 ### GameFlowService (SceneContext, IInitializable, IDisposable)
 ```
-Оркестрирует весь игровой цикл внутри Game-сцены.
-
 OnLevelLost : Observable<(Sprite? CharacterSprite, StorySlide? Story)>
 
 ShowCurrentLevelTask():
@@ -187,8 +254,6 @@ HandleLose():
 Show(levelTitle, characterSprite, objectives, objectiveIcons, storySlide?)
 Hide()
 OnPlayClicked : Observable<Unit>
-
-Story-блок скрыт если storySlide == null или !HasContent.
 ```
 
 ### StageRewardPopupView (View, MonoBehaviour)
@@ -198,13 +263,11 @@ Hide()
 OnClaimClicked : Observable<Unit>
 ```
 
-### LevelResultView (View, MonoBehaviour) — только поражение
+### LevelResultView (View, MonoBehaviour)
 ```
-Подписывается на GameFlowService.OnLevelLost : Observable<(Sprite?, StorySlide?)>
-Показывает характер + story-блок (если есть)
 OnRestartClicked      : Observable<Unit>
 OnBackToMapClicked    : Observable<Unit>
-OnContinueClicked     : Observable<Unit>  ← кнопка "Продолжить за рекламу"
+OnContinueClicked     : Observable<Unit>
 ```
 
 ---
@@ -213,434 +276,100 @@ OnContinueClicked     : Observable<Unit>  ← кнопка "Продолжить
 
 ### Модели
 ```
-StorySlide (Core/Models, Serializable)
-  Image?           : Sprite       — картинка слайда
-  LocalizationId?  : string       — ID для системы локализации
-  FallbackText?    : string       — текст до подключения локализации
-  HasContent       : bool         — true если хоть одно поле заполнено
-
-LevelStoryData (Core/Models, Serializable)
-  StartStory?  : StorySlide  — перед стартом уровня (LevelTaskPopupView)
-  WinStory?    : StorySlide  — победа на последнем уровне (StageRewardPopupView)
-  LoseStory?   : StorySlide  — поражение (LevelResultView)
+StorySlide { Image?, LocalizationId?, FallbackText?, HasContent }
+LevelStoryData { StartStory?, WinStory?, LoseStory? }
 ```
 
 ### Конфиг
 ```
-StageStoryConfig (Configs, ScriptableObject)
-  menuName: "Match3/Story/Stage Story"
-
-  StageSelectStory? : StorySlide      — экран выбора этапа (LevelSelectPopupView)
-  LevelStories[3]   : LevelStoryData  — по индексу уровня
-
+StageStoryConfig (ScriptableObject)
+  StageSelectStory? : StorySlide
+  LevelStories[3]   : LevelStoryData
   GetLevelStory(levelIndex) → LevelStoryData?
-```
-
-### Подключение к StageConfig
-```
-StageConfig.StoryConfig? : StageStoryConfig   — null = этап без истории
-```
-
-### Story-блок во View
-```
-Каждый из 4 View содержит:
-  [SerializeField] GameObject _storyPanel   — контейнер (скрыт по умолчанию)
-  [SerializeField] Image      _storyImage   — картинка
-  [SerializeField] TMP_Text   _storyText    — текст
-
-ApplyStory(StorySlide? slide):
-  null || !HasContent → _storyPanel.SetActive(false)
-  иначе              → заполняет Image + Text, SetActive(true)
-  // TODO: при подключении локализации читать по LocalizationId вместо FallbackText
 ```
 
 ### Флоу данных
 ```
 StageMapPresenter → LevelSelectPopupView.Show(..., stage.StoryConfig?.StageSelectStory)
-GameFlowService   → LevelTaskPopupView.Show(..., storyConfig?.GetLevelStory(idx)?.StartStory)
-GameFlowService   → StageRewardPopupView.Show(..., storyConfig?.GetLevelStory(idx)?.WinStory)
-GameFlowService   → _onLevelLost.OnNext((sadSprite, storyConfig?.GetLevelStory(idx)?.LoseStory))
-LevelResultView   ← подписывается на OnLevelLost, применяет LoseStory
+GameFlowService   → LevelTaskPopupView / StageRewardPopupView / _onLevelLost
 ```
 
 ---
 
 ## 🎁 Система наград ✅ РЕАЛИЗОВАНО
 
-### RewardData (Models)
-```csharp
-struct RewardData { RewardType Type; BoostType Boost; int Amount; }
 ```
+RewardData { RewardType, BoostType, Amount }
 
-### LevelConfig.Rewards[] и StageConfig.StageRewards[]
-```
-LevelConfig.Rewards[]      — награды за отдельный уровень (TODO: пока не выдаются)
-StageConfig.StageRewards[] — выдаются через RewardService при первом завершении этапа
-Бонусный этап → ставь более ценные награды (редкие бусты, много монет).
-```
-
-### RewardService (ProjectContext, IDisposable)
-```
-GrantAll(RewardData[])    → выдаёт все награды из массива
-OnRewardGranted           : Observable<RewardData>  ← Presenter слушает для анимации
-
-Поддерживаемые типы:
-  Boost → InventoryService.Add(boost, amount)
-  Coins → CoinService.Add(amount)
-  Lives → LivesService.AddLives(amount)
+RewardService (ProjectContext):
+  GrantAll(RewardData[])
+  OnRewardGranted : Observable<RewardData>
 ```
 
 ---
 
 ## 💰 Кошелёк (Wallet) ✅ РЕАЛИЗОВАНО
 
-### EconomyConfig (ProjectContext, ScriptableObject)
 ```
-Путь: Match3/Configs/Economy
+EconomyConfig: MaxLives=5, LifeRegenSeconds=1800, LivesPurchasePrice=300,
+               LivesPurchaseAmount=5, InitialCoins=500
 
-  MaxLives            = 5       — максимум жизней
-  LifeRegenSeconds    = 1800    — 30 мин на одну жизнь
-  LivesPurchasePrice  = 300     — монет за покупку жизней
-  LivesPurchaseAmount = 5       — кол-во жизней при покупке
-  InitialCoins        = 500     — монеты при первом запуске
-```
+CoinService:  Coins : ReadOnlyReactiveProperty<int>, Add, TrySpend
+LivesService: Lives, TimeUntilNextLife, TrySpendLife, AddLives
 
-### CoinService (ProjectContext, IDisposable)
-```
-PlayerPrefs: "wallet_coins"
-
-Coins : ReadOnlyReactiveProperty<int>
-Add(amount)           — добавляет монеты (throws если amount <= 0)
-TrySpend(amount)      — тратит монеты; false если недостаточно
-```
-
-### LivesService (ProjectContext, IDisposable)
-```
-PlayerPrefs:
-  "wallet_lives"           → int
-  "wallet_lives_timestamp" → string — Unix-секунды; "0" = полные
-
-Lives             : ReadOnlyReactiveProperty<int>
-TimeUntilNextLife : ReadOnlyReactiveProperty<TimeSpan>   — Zero когда жизни полные
-MaxLives          : int
-
-TrySpendLife()     → bool
-AddLives(amount)
-
-Таймер: UniTask-цикл (тик каждую секунду).
-Офлайн-восстановление на старте.
-```
-
-### WalletView (MonoBehaviour, SceneContext)
-```
-Живёт в Canvas каждой сцены (StageMap, Game). Presenter не нужен.
-Construct(CoinService, LivesService) — подписывается напрямую.
-OnDestroy() → _disposables.Dispose()
+WalletView — живёт в Canvas каждой сцены (StageMap, Game)
 ```
 
 ---
 
 ## 📺 Реклама (Ads) ✅ РЕАЛИЗОВАНО
 
-### AdConfig (ProjectContext, ScriptableObject)
 ```
-Путь: Match3/Configs/Ad
+AdConfig: AppIds, InterstitialCooldownSeconds=30, MinLevelsBetweenInterstitials=3,
+          Placements[] (PlacementId + UnitIds + Rewards)
 
-AppIdAndroid, AppIdIos
-InterstitialCooldownSeconds   : int  = 30
-MinLevelsBetweenInterstitials : int  = 3
-Placements                    : AdPlacementEntry[]
-
-AdPlacementEntry:
-  PlacementId   : AdPlacementId
-  UnitIdAndroid : string
-  UnitIdIos     : string
-  Rewards       : RewardData[]
-```
-
-### AdResult (Core/Models, readonly struct)
-```
-IsRewarded : bool
-FailReason : AdFailReason
-
-AdResult.Success() / AdResult.Skip() / AdResult.Fail(reason)
-```
-
-### IAdProvider (интерфейс)
-```
-Реализации:
-  MockAdProvider   — для разработки (имитирует показ с задержкой 500мс)
-  // AdMobProvider — подключить при интеграции реального SDK
-```
-
-### AdService (ProjectContext, IInitializable, IDisposable)
-```
-ShowRewardedAsync(placementId, ct) → UniTask<AdResult>
-TryShowInterstitialAsync(ct)       → UniTask<bool>
-RegisterLevelCompleted()           — вызывать из GameFlowService после победы
+AdService: ShowRewardedAsync, TryShowInterstitialAsync, RegisterLevelCompleted
+IAdProvider → MockAdProvider (реальный: AdMobProvider — TODO)
 ```
 
 ---
 
 ## 💎 Супер-фишки
 
-| Тип | Триггер матча | Эффект |
-|-----|--------------|--------|
-| `HorizontalArrow` | 4 горизонталь | Вся строка |
-| `VerticalArrow` | 4 вертикаль | Весь столбец |
-| `ColorBomb` | 5 прямая | Все фишки цвета |
-| `Bomb` | T/L форма (5 кл.) | 3×3 |
-| `MegaBomb` | 6+ | 5×5 |
+| Тип | Триггер | Эффект |
+|-----|---------|--------|
+| HorizontalArrow | 4 горизонталь | Вся строка |
+| VerticalArrow | 4 вертикаль | Весь столбец |
+| ColorBomb | 5 прямая | Все фишки цвета |
+| Bomb | T/L (5 кл.) | 3×3 |
+| MegaBomb | 6+ | 5×5 |
 
 ---
 
 ## 🎒 Система рюкзака и бустов ✅ РЕАЛИЗОВАНО
 
-### Общая схема
 ```
-Рюкзак — это два независимых места использования бустов:
+InventoryService (ProjectContext): GetCount, HasAny, Add, TrySpend
+ItemConfig: BoostItems[] (BoostType + Icon + CoinPrice), RewardIcons[]
 
-  1. Game-сцена (игровой процесс):
-       BackpackView + BoostPresenter → применение буста на доске
-
-  2. StageMap-сцена (карта уровней):
-       BackpackPopupView → просмотр инвентаря + получение бустов за рекламу/монеты
-```
-
-### InventoryService (ProjectContext, IDisposable)
-```
-PlayerPrefs: "inventory_boost_{BoostType}"
-
-AllBoosts : BoostType[] — все 7 типов (HorizontalArrow, VerticalArrow, ColorBomb,
-                          Bomb, MegaBomb, Hint, Shuffle)
-
-GetCount(boost) : ReadOnlyReactiveProperty<int>
-HasAny(boost)   : bool
-Add(boost, n)   : void   — throws если n <= 0
-TrySpend(boost) : bool   — false если 0 в инвентаре
-
-AddDebugStarterPack() — ⚠️ временно, удалить после реализации реальных наград
-```
-
-### ItemConfig (ProjectContext, ScriptableObject)
-```
-Путь: Match3/Configs/Item
-Единый источник правды для визуала и стоимости предметов.
-
-BoostItems[]  : BoostItemEntry   — { BoostType, Icon (Sprite), CoinPrice (int) }
-RewardIcons[] : RewardIconEntry  — { RewardType, Icon (Sprite) }
-
-GetBoostIcon(boost)       → Sprite?
-GetBoostCoinPrice(boost)  → int
-GetIcon(RewardType, BoostType) → Sprite?
-```
-
-### BoostSlotView (MonoBehaviour)
-```
-Универсальный слот — используется в BackpackView (игра) и BackpackPopupView (карта).
-
-BoostType       : BoostType  — назначается в инспекторе
-IconTransform   : RectTransform
-OnClicked       : Observable<BoostType>
-
-SetIcon(Sprite?)
-UpdateCount(int)    — обновляет счётчик + alpha (0.45f если 0)
-SetInteractable(bool)
-```
-
-### BackpackView (MonoBehaviour) — Game-сцена
-```
-Нижняя панель бустов в игре. Слоты — pre-placed BoostSlotView[].
-
-OnBoostClicked : Observable<BoostType>  — агрегирует клики всех слотов
-
-UpdateCount(boost, count)
-SetAllInteractable(bool)                — блокируется когда буст уже активен
-GetIconWorldPosition(boost) → Vector3   — для анимации вылета в ActiveBoostView
-```
-
-### BackpackPopupView (MonoBehaviour) — StageMap-сцена ✅ НОВЫЙ
-```
-Рюкзак-попап на карте. Работает в двух режимах:
-  _startVisible = false  — скрытый попап с кнопкой открытия (_showButton)
-  _startVisible = true   — встроенная панель (например, в LevelSelectPopupView)
-
-Слоты подключаются к InventoryService через Construct().
-Клик по слоту → ResourcePopupService.Request() → появляется ResourcePopupView.
-
-Construct(InventoryService, ResourcePopupService, AdConfig, ItemConfig):
-  Для каждого слота:
-    — SetIcon из ItemConfig
-    — Подписка на InventoryService.GetCount → UpdateCount
-    — Подписка на OnClicked → OnBoostSlotClicked(boostType)
-
-OnBoostSlotClicked(boostType):
-  — Берёт Rewards из AdConfig.GetPlacement(RewardedBoost)
-  — Берёт CoinPrice из ItemConfig.GetBoostCoinPrice(boost)
-  — Собирает ResourcePopupRequest { Title, Rewards, RewardIcons, AdPlacementId, CoinPrice }
-  — Вызывает ResourcePopupService.Request(request)
-
-Show() / Hide() — анимация CanvasGroup.DOFade (0.25f / 0.2f)
-```
-
-### ActiveBoostView (MonoBehaviour) — Game-сцена
-```
-Шапка — показывает активный буст во время выбора цели на доске.
-
-OnCancelClicked : Observable<Unit>
-
-ShowBoost(icon, fromWorldPos):
-  — Иконка вылетает из позиции слота рюкзака (DOTween.Sequence)
-  — DOMove (0.35f, OutBack) + DOFade (0.25f)
-
-HideBoost():
-  — DOFade исчезновение (0.2f)
-```
-
-### BoostPresenter (SceneContext, IInitializable, IDisposable)
-```
-Связывает BackpackView + ActiveBoostView + BoostService + InventoryService.
-
-Initialize():
-  Подписка InventoryService.GetCount → BackpackView.UpdateCount (для каждого из AllBoosts)
-  BackpackView.OnBoostClicked → BoostService.SelectBoost
-  BoostService.OnBoostSelected → ActiveBoostView.ShowBoost (иконка из GemConfig)
-  BoostService.OnBoostCancelled → ActiveBoostView.HideBoost
-  BoostService.OnBoostApplied  → ActiveBoostView.HideBoost
-  ActiveBoostView.OnCancelClicked → BoostService.CancelBoost
-  BoostService.ActiveBoost → BackpackView.SetAllInteractable(boost == None)
-
-Примечание: иконки Hint/Shuffle пока не настроены в GemConfig — LogWarning.
-```
-
-### ResourcePopupService (ProjectContext, IDisposable)
-```
-Медиатор для открытия ResourcePopupView из любого места.
-
-OnRequest : Observable<ResourcePopupRequest>
-Request(ResourcePopupRequest) — публикует запрос
-
-ResourcePopupRequest (Model):
-  Title, CharacterDialog, DialogLocaleId
-  CharacterSprite?   : Sprite
-  Rewards            : RewardData[]
-  RewardIcons        : Sprite?[]
-  AdPlacementId      : AdPlacementId
-  AdButtonLabel      : string
-  CoinPrice?         : int
-  CoinButtonLabel    : string
-  NotifySuccess()    — callback после успешного получения награды
-```
-
-### ResourcePopupView (MonoBehaviour) — универсальный попап
-```
-Автономен — подписывается на ResourcePopupService.OnRequest сам (через Construct).
-
-Структура:
-  — Персонаж (иконка + диалог)
-  — Список наград (RewardItemView, динамически)
-  — Кнопка "Смотреть рекламу" → AdService.ShowRewardedAsync
-  — Кнопка "Купить за монеты" (скрыта если CoinPrice == null) → CoinService.TrySpend
-  — Кнопка "Закрыть"
-
-При успехе рекламы: RewardService.GrantAll не нужен — AdService делает это сам.
-При покупке за монеты: RewardService.GrantAll вызывается напрямую.
-```
-
-### BoostService (SceneContext)
-```
-SelectBoost / TryApplyBoostAt / CancelBoost
-ActiveBoost      : ReadOnlyReactiveProperty<BoostType>
-OnBoostSelected  : Observable<BoostType>
-OnBoostCancelled : Observable<BoostType>
-OnBoostApplied   : Observable<(BoostType, Vector2Int)>
-OnHintApplied    : Observable<(from, to)>
-OnShuffleApplied : Observable<Unit>
-```
-
-### SwapService (SceneContext)
-```
-Lock() / Unlock()
-ClearSelection() — вызывается при OnBoostSelected/OnBoostCancelled
-                   предотвращает случайный своп после буста
+BackpackView        — нижняя панель бустов в Game-сцене
+BackpackPopupView   — рюкзак-попап на StageMap
+BoostSlotView       — универсальный слот
+ActiveBoostView     — шапка с активным бустом (Game)
+BoostPresenter      — связывает всё вместе (SceneContext Game)
+BoostService        — SelectBoost, TryApplyBoostAt, CancelBoost
+ResourcePopupService / ResourcePopupView — получить ресурс за рекламу/монеты
 ```
 
 ---
 
 ## 🛒 Магазин (Shop) ✅ РЕАЛИЗОВАНО
 
-### ShopConfig (ProjectContext, ScriptableObject)
 ```
-Путь: Match3/Configs/Shop
-
-Items[] : ShopItemData
-  PurchaseId : string   — уникальный ID товара (используется IIAPProvider)
-  CoinCost   : int      — стоимость в монетах (0 = только IAP)
-  Icon       : Sprite?
-  Title      : string
-  Rewards[]  : RewardData
-```
-
-### IIAPProvider (интерфейс) + MockIAPProvider
-```
-Реализации:
-  MockIAPProvider  — для разработки (имитирует покупку с задержкой 500мс, всегда Success)
-  // UnityIAPProvider — подключить при интеграции Unity IAP SDK
-
-PurchaseAsync(purchaseId, ct) → UniTask<PurchaseResult>
-```
-
-### ShopService (ProjectContext, IDisposable)
-```
-BuyWithCoinsAsync(purchaseId, ct) → UniTask<PurchaseResult>
-  — CoinService.TrySpend → RewardService.GrantAll → OnPurchaseSuccess
-
-BuyWithIAPAsync(purchaseId, ct) → UniTask<PurchaseResult>
-  — IIAPProvider.PurchaseAsync → RewardService.GrantAll → OnPurchaseSuccess
-
-OnPurchaseSuccess : Observable<RewardData[]>
-```
-
-### ShopView (MonoBehaviour)
-```
-Build(ShopConfig, ItemConfig)
-  — Instantiate ShopItemCardView на каждый ShopItemData в _cardsContainer
-
-Show() / Hide()     — CanvasGroup.DOFade (0.25f / 0.2f) + SetLink
-SetAllCardsInteractable(bool)
-
-OnBuyClicked : Observable<string>   — purchaseId
-```
-
-### ShopItemCardView (MonoBehaviour)
-```
-Setup(ShopItemData, ItemConfig)
-  — заполняет иконку, название, стоимость
-  — Instantiate RewardItemView для каждой награды в _rewardRoot
-
-SetInteractable(bool)
-OnBuyClicked : Observable<string>   — purchaseId
-```
-
-### ShopPresenter (SceneContext или ProjectContext, IInitializable, IDisposable)
-```
-Initialize():
-  _view.Build(shopConfig, itemConfig)
-  _view.OnBuyClicked → HandleBuyAsync(purchaseId)
-
-HandleBuyAsync(purchaseId):
-  SetAllCardsInteractable(false)
-  ShopService.BuyWithCoinsAsync → логирует NotEnoughCoins
-  finally: SetAllCardsInteractable(true)
-```
-
-### ShopInstaller (MonoInstaller)
-```
-ShopConfig         → FromScriptableObject.AsSingle
-IIAPProvider       → MockIAPProvider.AsSingle
-ShopService        → AsSingle
-ShopView           → FromComponentInHierarchy.AsSingle
-ShopPresenter      → BindInterfacesAndSelfTo.AsSingle.NonLazy
+ShopConfig: Items[] (PurchaseId + CoinCost + Icon + Title + Rewards[])
+ShopService: BuyWithCoinsAsync, BuyWithIAPAsync, OnPurchaseSuccess
+IIAPProvider → MockIAPProvider (реальный: UnityIAPProvider — TODO)
+ShopView / ShopItemCardView / ShopPresenter / ShopInstaller
 ```
 
 ---
@@ -649,56 +378,25 @@ ShopPresenter      → BindInterfacesAndSelfTo.AsSingle.NonLazy
 
 ### ProjectContext
 ```
-InventoryService      — бусты (PlayerPrefs)
-ProgressService       — прогресс карты (PlayerPrefs)
-CoinService           — монеты (PlayerPrefs)
-LivesService          — жизни + таймер (PlayerPrefs)
-RewardService         — выдача наград (IDisposable)
-AdService             — реклама (IInitializable, IDisposable)
-ResourcePopupService  — медиатор попапа ресурсов (IDisposable)
-ShopService           — покупки (IDisposable)
-WalletView            — HUD кошелька, подписка через Construct()
-ISceneManagerService  → SceneManagerService
-Bootstrapper          — стартует с SceneId.StageMap
+InventoryService, ProgressService, CoinService, LivesService
+RewardService, AdService, ResourcePopupService, ShopService
+ISceneManagerService → SceneManagerService
+Bootstrapper — стартует с SceneId.StageMap
+```
+
+### SceneContext (StageMap)
+```
+StageMapPresenter
+BackpackPopupView
+ShopPresenter
 ```
 
 ### SceneContext (Game)
 ```
 BoardService, SwapService, LayerService, LevelService
-HintService, BoostService
-GemFactory
-GameLoopController  (IInitializable #1, IDisposable)
-GameFlowService     (IInitializable #2, IDisposable)
-```
-
-### SceneContext (StageMap)
-```
-BackpackPopupView   — через MonoBehaviours To Inject или FromComponentInHierarchy
-ShopPresenter       — IInitializable, IDisposable (если магазин открывается со StageMap)
-```
-
-### LevelService (SceneContext)
-```
-RegisterMatch(match)
-RegisterDestroyedCells(gems)
-ProcessTurnResult()
-```
-
-### GameLoopController (SceneContext)
-```
-Баги исправлены (2025):
-  - ClearSelection() при OnBoostSelected/OnBoostCancelled
-  - RegisterDestroyedCells + LayerService.ProcessMatches в ApplyBoostAtAsync
-  - ProcessTurnResult() всегда после буста
-  - LockCell(false) до null-чека в HandleSwapAsync
-```
-
-### GemFactory (SceneContext)
-```
-Create(nodeType, parent, name) → GemView
-  — использует GemConfig.GemViewPrefab
-  — назначает SetConfig + SetVisual
-  — позиционирование — ответственность BoardView.PositionGem()
+HintService, BoostService, GemFactory
+GameLoopController (IInitializable #1)
+GameFlowService    (IInitializable #2)
 ```
 
 ---
@@ -706,17 +404,21 @@ Create(nodeType, parent, name) → GemView
 ## 📦 Configs
 
 ```
-LevelConfig       — MoveLimit, AllowedNodeTypes[], Objectives[], Grid[], Rewards[]
-StageConfig       — StageName, StageIcon, IsBonusStage, SuperPrize, StageRewards[],
-                    StoryConfig?, Levels[3]
-StageStoryConfig  — StageSelectStory?, LevelStories[3]
-CountryConfig     — CountryName, CountryIcon, SectionColor, Stages[10]
-WorldMapConfig    — Countries[5]
-EconomyConfig     — MaxLives, LifeRegenSeconds, LivesPurchasePrice,
-                    LivesPurchaseAmount, InitialCoins
-AdConfig          — AppIds, Cooldowns, Placements[] (PlacementId + UnitIds + Rewards)
-ItemConfig        — BoostItems[] (BoostType + Icon + CoinPrice), RewardIcons[]
-ShopConfig        — Items[] (PurchaseId + CoinCost + Icon + Title + Rewards[])
+LevelConfig            — MoveLimit, AllowedNodeTypes[], Objectives[], Grid[], Rewards[]
+StageConfig            — StageName, StageIcon, BackgroundOverride?,
+                         IsBonusStage, SuperPrize, StageRewards[], StoryConfig?, Levels[3]
+StageStoryConfig       — StageSelectStory?, LevelStories[3]
+CountryConfig          — CountryName, CountryIcon, SectionColor,
+                         GameBackgroundSprite?,                              ← добавлено
+                         SectionSprite, SectionHeight, Stages[10]   ← добавить спрайт
+CountryTransitionConfig — FromCountryIndex, ToCountryIndex,          ← новый
+                          TransitionSprite, TransitionHeight
+WorldMapConfig         — Countries[], Transitions[]                  ← добавить Transitions
+EconomyConfig          — MaxLives, LifeRegenSeconds, LivesPurchasePrice,
+                         LivesPurchaseAmount, InitialCoins
+AdConfig               — AppIds, Cooldowns, Placements[]
+ItemConfig             — BoostItems[], RewardIcons[]
+ShopConfig             — Items[]
 ```
 
 ---
@@ -735,110 +437,75 @@ Assets/Match3/Scripts/
 ├── Configs/
 │   ├── GemConfig, BoardConfig, AnimationConfig
 │   ├── LevelConfig, LevelConfigRepository
-│   ├── StageConfig, WorldMapConfig, CountryConfig
+│   ├── StageConfig, CountryConfig (+ SectionSprite)
+│   ├── CountryTransitionConfig                    ← новый
+│   ├── WorldMapConfig (+ Transitions[])           ← обновить
 │   ├── StageStoryConfig, EconomyConfig
-│   ├── AdConfig, ItemConfig
-│   └── ShopConfig
+│   ├── AdConfig, ItemConfig, ShopConfig
 ├── Controllers/
-│   ├── Bootstrapper
-│   └── GameLoopController
+│   ├── Bootstrapper, GameLoopController
 ├── Services/
-│   ├── Board/          BoardService
-│   ├── Swap/           SwapService
-│   ├── Layer/          LayerService
-│   ├── Level/          LevelService
-│   ├── Factories/      GemFactory
-│   ├── Ads/            IAdProvider, MockAdProvider, AdService
-│   ├── Shop/           IIAPProvider, MockIAPProvider, ShopService
-│   ├── HintService, BoostService
-│   ├── GameFlowService
+│   ├── Board/, Swap/, Layer/, Level/, Factories/
+│   ├── Ads/, Shop/
+│   ├── HintService, BoostService, GameFlowService
 │   ├── InventoryService, ProgressService, RewardService
-│   ├── CoinService, LivesService
-│   └── ResourcePopupService
+│   ├── CoinService, LivesService, ResourcePopupService
 ├── Views/
-│   ├── StageMapView, StageNodeView, CountryNodeView, LevelSelectPopupView
+│   ├── StageMap/                                  ← новая папка
+│   │   ├── StageMapView (обновить — BuildContent)
+│   │   ├── StageNodeView, CountryNodeView
+│   │   ├── CountrySectionView                     ← новый
+│   │   ├── CountryTransitionView                  ← новый
+│   │   └── LevelSelectPopupView
 │   ├── BoardView, GemView, LayerView
 │   ├── ObjectiveView, ObjectiveItemView, MoveCounterView
 │   ├── LevelResultView, LevelTaskPopupView, StageRewardPopupView
-│   ├── BackpackView       — панель бустов в Game-сцене
-│   ├── BackpackPopupView  — рюкзак-попап на карте (StageMap)
-│   ├── BoostSlotView      — универсальный слот буста
-│   ├── ActiveBoostView    — шапка с активным бустом (Game)
-│   ├── ResourcePopupView  — универсальный попап получения ресурса
-│   ├── RewardItemView     — одна строка награды в ResourcePopupView
-│   ├── ShopView           — полноэкранный попап магазина (ScrollRect + карточки)
-│   ├── ShopItemCardView   — карточка одного товара
-│   ├── WalletView
+│   ├── BackpackView, BackpackPopupView, BoostSlotView
+│   ├── ActiveBoostView, ResourcePopupView, RewardItemView
+│   ├── ShopView, ShopItemCardView, WalletView
 │   └── BoardInputHandler
 ├── Presenters/
-│   ├── StageMapPresenter
+│   ├── StageMapPresenter (обновить — вызов BuildContent)
 │   ├── BoardPresenter, SwapPresenter, LayerPresenter
-│   ├── ObjectivePresenter
-│   ├── LevelPresenter
-│   ├── BoostPresenter
-│   ├── ShopPresenter
-│   └── WalletPresenter
-├── Editor/
-│   ├── WorldMapConfigGenerator, StageMapUISetup, LevelEditorWindow
-│   └── CellDataDrawer, UISetupEditor, StageMapUISetupEditor
+│   ├── ObjectivePresenter, LevelPresenter
+│   ├── BoostPresenter, ShopPresenter, WalletPresenter
 └── Installers/
-    ├── ProjectConfigInstaller    ← AdConfig, ItemConfig, ShopConfig
-    ├── ProjectServiceInstaller   ← IAdProvider→MockAdProvider, AdService,
-    │                                IIAPProvider→MockIAPProvider, ShopService,
-    │                                ResourcePopupService
-    ├── StageMapInstaller, StageMapViewInstaller
-    ├── ShopInstaller             ← ShopView, ShopPresenter (добавить в нужный контекст)
-    ├── SceneServiceInstaller
-    ├── SceneViewInstaller
-    └── ScenePresenterInstaller
+    ├── ProjectConfigInstaller, ProjectServiceInstaller
+    ├── StageMapInstaller (обновить — CountryTransitionConfig)
+    ├── StageMapViewInstaller
+    ├── ShopInstaller
+    ├── SceneServiceInstaller, SceneViewInstaller, ScenePresenterInstaller
 ```
 
 ---
 
 ## 🛡️ Блокирующие препятствия ✅ РЕАЛИЗОВАНО (Variant B)
 
-### Типы
-| Тип | Поведение | Триггер удара | HP |
-|------|----------|----------------|----|
-| **Ice** | Гем заморожен, не движется, не матчится | Смежный матч | 1–2 |
-| **Box** | Нет гема, блокирует падение | Смежный матч | 1–3 |
-| **Chain** | Гем виден. HP=1 участвует в матче; HP>1 смежный удар | HP=1: прямой матч; HP>1: смежный | 1–2 |
-| **Rock** | Нет гема, как Box но прочнее | Смежный матч | 2–4 |
+| Тип | Поведение | Триггер | HP |
+|-----|-----------|---------|-----|
+| Ice | Гем заморожен | Смежный матч | 1–2 |
+| Box | Нет гема, блокирует падение | Смежный матч | 1–3 |
+| Chain | Гем виден | HP=1: прямой; HP>1: смежный | 1–2 |
+| Rock | Нет гема, прочнее Box | Смежный матч | 2–4 |
 
-### Архитектура (Variant B)
 ```
-Препятствия хранятся в BoardCell (ObstacleType + ObstacleHp + MaxObstacleHp).
-
-BoardService:
-  ProcessObstaclesFromMatch(matchedCells)
-  HitObstaclesDirectly(cells)
-  GetObstacles()
-  OnObstacleHit, OnObstacleCleared, OnAllObstaclesCleared
-
-LayerPresenter переписан на события BoardService
-LayerView: SpawnObstacleCell / UpdateCellHp / ClearCell
-LevelService.CheckWinCondition: _boardService.IsAllObstaclesCleared
+BoardService: ProcessObstaclesFromMatch, HitObstaclesDirectly,
+              OnObstacleHit, OnObstacleCleared, OnAllObstaclesCleared
 ```
-
-### TODO по препятствиям
-- Заменить dev-цвета в LayerView на спрайты (ObstacleConfig ScriptableObject)
-- Обновить Level Editor (выбор типа + HP препятствия)
-- Удалить файл LayerService.cs
 
 ---
 
 ## 📐 План генерации уровней (135 уровней)
 
-### Прогрессия сложности
-| Страна | Уровни | Ходы | Цвета | Размеры досок |
-|--------|--------|------|-------|---------------|
-| Egypt 0 | 1–27 | 32→24 | 3→4 | 7×7 → 8×8 |
-| Greece 1 | 28–54 | 28→24 | 4→5 | 8×8 → 9×9 |
-| China 2 | 55–81 | 26→22 | 5 | 9×9 → 10×10 |
-| Maya 3 | 82–108 | 24→20 | 5→6 | 10×10 → 11×11 |
-| India 4 | 109–135 | 22→18 | 6 | 11×11 → 12×12 |
+| Страна | Уровни | Ходы | Цвета | Доски |
+|--------|--------|------|-------|-------|
+| Egypt 0 | 1–27 | 32→24 | 3→4 | 7×7→8×8 |
+| Greece 1 | 28–54 | 28→24 | 4→5 | 8×8→9×9 |
+| China 2 | 55–81 | 26→22 | 5 | 9×9→10×10 |
+| Maya 3 | 82–108 | 24→20 | 5→6 | 10×10→11×11 |
+| India 4 | 109–135 | 22→18 | 6 | 11×11→12×12 |
 
-### Egypt — детальный план этапов
+### Egypt — этапы
 | Этап | Уровни | Размер | Форма | Препятствия | Ходы |
 |------|--------|--------|-------|-------------|------|
 | 01 | 1–3 | 7×7 | FULL | — | 32,30,30 |
@@ -851,49 +518,36 @@ LevelService.CheckWinCondition: _boardService.IsAllObstaclesCleared
 | 08 | 22–24 | 8×8 | FULL | Chain×4 | 26,24,24 |
 | 09 | 25–27 | 8×8 | T-SHAPE | Ice×4 Chain×2 | 26,24,24 |
 
-### Формы досок (Hidden-ячейки)
-```
-ROUNDED 7×7:   H.N.N.N.N.N.H / N.N.N.N.N.N.N (×5) / H.N.N.N.N.N.H
-CROSS 7×7:     H.H.N.N.N.H.H (×2) / N.N.N.N.N.N.N (×3) / H.H.N.N.N.H.H (×2)
-DIAMOND 7×7:   симметричный ромб, центральная строка полная
-HOURGLASS 7×7: песочные часы — широкий верх/низ, узкий центр
-STAIRS 8×7:    ступени с нарастающим Hidden слева
-T-SHAPE 8×8:   2 полных строки сверху + 5 узких строк (стебель)
-```
-
-### AllowedNodeTypes (hex в YAML)
-```
-3 цвета (R,B,G): 010000000200000003000000
-4 цвета +Y:      01000000020000000300000004000000
-5 цветов +P:     0100000002000000030000000400000005000000
-6 цветов +O:     010000000200000003000000040000000500000006000000
-```
-
 ---
 
 ## 📝 TODO
 
-- **#7** LevelState enum вынести из LevelService.cs в Core/Enums/
-- UI анимации попапов (DOTween — вылет/исчезновение)
-- Анимация вылета иконок наград в StageRewardPopupView
-- LevelConfig.Rewards[] — выдаются через RewardService при первом прохождении уровня
-- Комбо-свопы двух супер-фишек
-- Визуальные эффекты взрывов (частицы)
-- BoostPresenter: добавить иконки Hint/Shuffle в GemConfig или отдельный BoostConfig
-- WalletView — добавить в Canvas StageMap и Game сцен, назначить TMP-слоты в инспекторе
-- EconomyConfig — создать ассет через Match3/Configs/Economy и назначить в ProjectConfigInstaller
-- ItemConfig — создать ассет через Match3/Configs/Item, заполнить иконки и цены
-- AdConfig — создать ассет через Match3/Configs/Ad, заполнить UnitId
-- **ShopConfig — создать ассет через Match3/Configs/Shop, заполнить товары**
-- **ShopView — создать GameObject в сцене, назначить поля в инспекторе**
-- **ShopItemCardView — создать Prefab, назначить поля в инспекторе**
-- **ShopInstaller — добавить в SceneContext StageMap**
-- **При подключении Unity IAP — создать UnityIAPProvider : IIAPProvider, сменить биндинг**
-- SceneViewInstaller + StageMapViewInstaller — добавить биндинг WalletView.FromComponentInHierarchy
-- StageStoryConfig — назначить в нужные StageConfig через инспектор
-- Story: при локализации заменить FallbackText на чтение по LocalizationId
-- При подключении реального SDK — создать AdMobProvider : IAdProvider, сменить биндинг
-- Заменить dev-цвета в LayerView на спрайты (ObstacleConfig)
-- Обновить Level Editor (выбор типа + HP препятствия)
-- Удалить файл LayerService.cs
-- AddDebugStarterPack() — удалить после реализации реальных наград
+### StageMap — расширение карты (приоритет)
+- [ ] Добавить `SectionSprite`, `SectionHeight` в `CountryConfig`
+- [ ] Создать `CountryTransitionConfig` ScriptableObject
+- [ ] Добавить `Transitions[]` в `WorldMapConfig`
+- [ ] Создать Prefab `CountrySectionView`
+- [ ] Создать Prefab `CountryTransitionView`
+- [ ] Обновить `StageMapView` — метод `BuildContent(WorldMapConfig)`
+- [ ] Обновить `StageMapPresenter` — вызов `BuildContent` первым в `Initialize()`
+- [ ] Обновить `StageMapUISetup` (Editor)
+- [ ] Обновить `WorldMapConfigGenerator` (Editor) — генерировать `CountryTransitionConfig`
+- [ ] Создать `CountryTransitionConfig` ассеты (5 штук: eg→gr, gr→ch, ch→ma, ma→in, in→ru)
+- [ ] Заказать/сгенерировать графику (промпты: Docs/GlobalMap_Prompts.md)
+
+### Прочее
+- [ ] LevelState enum → Core/Enums/
+- [ ] UI анимации попапов (DOTween)
+- [ ] LevelConfig.Rewards[] — выдавать через RewardService
+- [ ] Комбо-свопы двух супер-фишек
+- [ ] Визуальные эффекты взрывов (частицы)
+- [ ] BoostPresenter: иконки Hint/Shuffle
+- [ ] WalletView — Canvas StageMap и Game сцен
+- [ ] EconomyConfig, ItemConfig, AdConfig, ShopConfig — создать ассеты
+- [ ] ShopView, ShopItemCardView — создать GameObject/Prefab
+- [ ] ShopInstaller — добавить в SceneContext StageMap
+- [ ] UnityIAPProvider, AdMobProvider — при подключении реальных SDK
+- [ ] Заменить dev-цвета LayerView на спрайты (ObstacleConfig)
+- [ ] Обновить Level Editor (тип + HP препятствия)
+- [ ] Удалить LayerService.cs
+- [x] Удалить AddDebugStarterPack()

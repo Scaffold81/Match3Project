@@ -18,6 +18,10 @@ namespace Match3.Configs
         public Sprite StageIcon { get; private set; } = null!;
 
         [field: SerializeField]
+        [field: Tooltip("Опциональный override фона для игровой сцены. Если null — используется GameBackgroundSprite из CountryConfig.")]
+        public Sprite? BackgroundOverride { get; private set; }
+
+        [field: SerializeField]
         [field: Tooltip("Арт персонажа на панели выбора уровня")]
         public Sprite? CharacterSprite { get; private set; }
 

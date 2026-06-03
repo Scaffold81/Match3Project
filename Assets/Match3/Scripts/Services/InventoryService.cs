@@ -51,20 +51,15 @@ namespace Match3.Services.Inventory
             if (!_counts.TryGetValue(boost, out var prop)) return;
             prop.Value += amount;
             Save(boost, prop.Value);
-            Debug.LogWarning($"[InventoryService] +{amount} {boost} → итого {prop.Value}");
         }
 
         public bool TrySpend(BoostType boost)
         {
             if (!_counts.TryGetValue(boost, out var prop) || prop.Value <= 0)
-            {
-                Debug.LogWarning($"[InventoryService] Нет {boost} в инвентаре");
                 return false;
-            }
 
             prop.Value--;
             Save(boost, prop.Value);
-            Debug.LogWarning($"[InventoryService] -{1} {boost} → осталось {prop.Value}");
             return true;
         }
 
@@ -77,7 +72,6 @@ namespace Match3.Services.Inventory
             const int Amount = 1000;
             foreach (var boost in AllBoosts)
                 Add(boost, Amount);
-            Debug.LogWarning($"[InventoryService] ⚠️ DEBUG: +{Amount} каждого буста");
         }
 
         // ── PlayerPrefs ───────────────────────────────────────────────────────
