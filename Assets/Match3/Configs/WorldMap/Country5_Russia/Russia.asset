@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3edbe9718fdab9c41b39afb9ce91a3fb, type: 3}
   m_Name: Russia
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.CountryConfig
-  <CountryName>k__BackingField: Egypt
+  <CountryName>k__BackingField: Russia
   <CountryIcon>k__BackingField: {fileID: 0}
   <LockedIcon>k__BackingField: {fileID: 0}
   <SectionColor>k__BackingField: {r: 0.94, g: 0.87, b: 0.6, a: 1}

@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: WorldMapConfig
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.WorldMapConfig
   <Countries>k__BackingField:
-  - {fileID: 11400000, guid: 5a6d3639aa25a0d40a0e2118d8d45e96, type: 2}
-  - {fileID: 11400000, guid: cf12140e76b1e694f9d7d7952375486c, type: 2}
+  - {fileID: 11400000, guid: 2d95e4475c21c844587fe3d32ae86535, type: 2}
   - {fileID: 11400000, guid: e9d7c0f24dc07f943af918df6d565614, type: 2}
   - {fileID: 11400000, guid: 2f7e70de3e3bde94c870114526787365, type: 2}
-  - {fileID: 11400000, guid: 8e6007b9c5aa0b54495e70a2491ede79, type: 2}
+  - {fileID: 11400000, guid: 5a6d3639aa25a0d40a0e2118d8d45e96, type: 2}
+  - {fileID: 11400000, guid: e87831ed8c5c5454bbe3cd58ddbaf86c, type: 2}
   - {fileID: 11400000, guid: 8e6007b9c5aa0b54495e70a2491ede79, type: 2}

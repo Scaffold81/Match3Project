@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.StageConfig
   <StageName>k__BackingField: Stage 1
   <StageIcon>k__BackingField: {fileID: 0}
+  <BackgroundOverride>k__BackingField: {fileID: 0}
   <CharacterSprite>k__BackingField: {fileID: 0}
   <SadCharacterSprite>k__BackingField: {fileID: 0}
-  <StoryConfig>k__BackingField: {fileID: 11400000, guid: 4f3cb9c54fed0d641ae37dc5c286a7a7, type: 2}
+  <StoryConfig>k__BackingField: {fileID: 11400000, guid: eb20694a51f02a14e9d40637b4b9e33d, type: 2}
   <StageRewards>k__BackingField:
   - <Type>k__BackingField: 0
     <Boost>k__BackingField: 1
@@ -30,6 +31,6 @@ MonoBehaviour:
   <IsBonusStage>k__BackingField: 0
   <SuperPrize>k__BackingField: {fileID: 0}
   <Levels>k__BackingField:
-  - {fileID: 11400000, guid: afdf16e9be9238544bac642caace8d97, type: 2}
-  - {fileID: 11400000, guid: d78095e5db81d0241aeda4ac7a7fc86a, type: 2}
-  - {fileID: 11400000, guid: 5656b168da3816b43ad4974fe814c730, type: 2}
+  - {fileID: 11400000, guid: d1692222eb3e4174e9454ff85e3abfc2, type: 2}
+  - {fileID: 11400000, guid: 51d60a276d0c7a64eb7bc89c7c07d08c, type: 2}
+  - {fileID: 11400000, guid: c1626fdaa5ffbca47b4925bee9c29f1a, type: 2}

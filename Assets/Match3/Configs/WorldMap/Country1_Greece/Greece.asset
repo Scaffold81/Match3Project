@@ -16,6 +16,9 @@ MonoBehaviour:
   <CountryIcon>k__BackingField: {fileID: 0}
   <LockedIcon>k__BackingField: {fileID: 0}
   <SectionColor>k__BackingField: {r: 0.72, g: 0.83, b: 0.96, a: 1}
+  <GameBackgroundSprite>k__BackingField: {fileID: -2707324945123152895, guid: 9fee3714a81aa6d4081645ec90aedc7f, type: 3}
+  <CharacterSprite>k__BackingField: {fileID: 0}
+  <CountryRewards>k__BackingField: []
   <Stages>k__BackingField:
   - {fileID: 11400000, guid: efe39d882983a1b4fa2434e8fd7593a4, type: 2}
   - {fileID: 11400000, guid: f8ab8bacb2fbd0c4da8fc705f26b2ac4, type: 2}
