@@ -148,6 +148,29 @@ namespace Match3.Services
             return GetStars(countryIdx, stageIdx, levelIdx - 1) > 0;
         }
 
+        /// <summary>
+        /// Сбрасывает весь прогресс: все звёзды обнуляются, текущий адрес — на первый
+        /// уровень. Первый этап первой страны разблокирован всегда (см. IsStageUnlocked),
+        /// поэтому отдельно "оставлять первый уровень открытым" не требуется.
+        /// </summary>
+        public void ResetAllProgress()
+        {
+            for (var c = 0; c < _worldMapConfig.CountryCount; c++)
+            for (var s = 0; s < TotalStageCount; s++)
+            for (var l = 0; l < 3; l++)
+                PlayerPrefs.DeleteKey(string.Format(StarsKey, c, s, l));
+
+            PlayerPrefs.DeleteKey($"{CurrentKey}_c");
+            PlayerPrefs.DeleteKey($"{CurrentKey}_s");
+            PlayerPrefs.DeleteKey($"{CurrentKey}_l");
+            ClearPendingCountryReward();
+
+            _currentAddress.Value = new LevelAddress(0, 0, 0);
+            PlayerPrefs.Save();
+
+            Debug.LogWarning("[ProgressService] Прогресс сброшен — все уровни закрыты, кроме первого");
+        }
+
         // ── Ожидающая награда за страну ───────────────────────────────────────────
 
         /// <summary>

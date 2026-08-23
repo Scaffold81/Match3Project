@@ -2,11 +2,14 @@
 
 using Match3.Configs;
 using Match3.Controllers;
+using Match3.Presenters;
 using Match3.Services;
 using Match3.Services.Ads;
+using Match3.Services.Debugging;
 using Match3.Services.Inventory;
 using Match3.Services.SceneManagement;
 using Match3.Services.Shop;
+using Match3.Views;
 using Zenject;
 
 namespace Match3.Installers
@@ -38,6 +41,18 @@ namespace Match3.Installers
 
             Container.Bind<IIAPProvider>().To<MockIAPProvider>().AsSingle();
             Container.Bind<ShopService>()                      .AsSingle().NonLazy();
+
+            Container.Bind<CheatService>()                     .AsSingle();
+            Container.Bind<DebugService>()                      .AsSingle();
+
+            // Глобальная дебаг-панель — GameObject создаётся Zenject'ом прямо
+            // под ProjectContext (DontDestroyOnLoad), без ручного размещения в сценах.
+            Container.Bind<DebugPanelView>()
+                .FromNewComponentOnNewGameObject()
+                .AsSingle()
+                .NonLazy();
+
+            Container.BindInterfacesAndSelfTo<DebugPresenter>().AsSingle().NonLazy();
         }
     }
 }

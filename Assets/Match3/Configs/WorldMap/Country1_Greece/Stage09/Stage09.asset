@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.StageConfig
   <StageName>k__BackingField: Stage 9
   <StageIcon>k__BackingField: {fileID: 0}
+  <BackgroundOverride>k__BackingField: {fileID: -216331343503992580, guid: 142ffec8b4d7e6844b90fcde991b771b, type: 3}
   <CharacterSprite>k__BackingField: {fileID: 0}
   <SadCharacterSprite>k__BackingField: {fileID: 0}
   <StoryConfig>k__BackingField: {fileID: 11400000, guid: 4ee21ecebb82cc242921f3c7d9a551b4, type: 2}

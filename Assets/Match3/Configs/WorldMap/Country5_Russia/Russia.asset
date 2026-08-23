@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Russia
   m_EditorClassIdentifier: Assembly-CSharp::Match3.Configs.CountryConfig
   <CountryName>k__BackingField: Russia
-  <CountryIcon>k__BackingField: {fileID: 0}
+  <CountryIcon>k__BackingField: {fileID: -6827225834955024599, guid: 3976bb27a5de0c342ae64d6453785616, type: 3}
   <LockedIcon>k__BackingField: {fileID: 0}
   <SectionColor>k__BackingField: {r: 0.94, g: 0.87, b: 0.6, a: 1}
   <GameBackgroundSprite>k__BackingField: {fileID: 0}
